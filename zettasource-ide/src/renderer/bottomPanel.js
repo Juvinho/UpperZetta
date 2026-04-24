@@ -1,5 +1,23 @@
 const { ipcRenderer } = window.require('electron');
 
+const OUTPUT_COLORS = {
+    BUILD:   '#5591C7',
+    PROGRAM: '#D4D4D4',
+    RUN:     '#4EC94E',
+    ERROR:   '#E53030',
+    WARN:    '#E5A030',
+    EXIT:    '#6A6A6A',
+};
+
+const OUTPUT_PREFIXES = {
+    BUILD:   '[BUILD]  ',
+    PROGRAM: '         ',
+    RUN:     '[RUN]    ',
+    ERROR:   '[ERRO]   ',
+    WARN:    '[AVISO]  ',
+    EXIT:    '[EXIT]   ',
+};
+
 export class BottomPanel {
     constructor(app) {
         this.app = app;
@@ -7,28 +25,63 @@ export class BottomPanel {
         this.tabs = document.querySelectorAll('.panel-tab');
         this.views = document.querySelectorAll('.panel-view');
         this.activePanel = 'terminal';
-        
+        this.outputContent = null;
+
         this.init();
     }
 
     init() {
+        // Build #output-content inside #output-container
+        const outputContainer = document.getElementById('output-container');
+        outputContainer.style.flexDirection = 'column';
+        outputContainer.style.padding = '0';
+
+        const toolbar = document.createElement('div');
+        toolbar.className = 'output-toolbar';
+        toolbar.innerHTML = `
+            <span class="output-toolbar-label">OUTPUT UVLM</span>
+            <button class="output-clear-btn" title="Limpar output">clear_all</button>
+        `;
+        outputContainer.appendChild(toolbar);
+
+        this.outputContent = document.createElement('div');
+        this.outputContent.id = 'output-content';
+        outputContainer.appendChild(this.outputContent);
+
+        toolbar.querySelector('.output-clear-btn').onclick = () => {
+            this.outputContent.innerHTML = '';
+        };
+
+        outputContainer.oncontextmenu = (e) => {
+            e.preventDefault();
+            if (confirm('Limpar output?')) this.outputContent.innerHTML = '';
+        };
+
+        // Panel tab clicks
         this.tabs.forEach(tab => {
-            tab.onclick = () => {
-                const panel = tab.dataset.panel;
-                this.switchPanel(panel);
-            };
+            tab.onclick = () => this.switchPanel(tab.dataset.panel);
         });
 
         document.getElementById('close-panel-btn').onclick = () => {
             this.container.classList.toggle('hidden');
         };
 
-        // Initialize Output Clear
-        const outputContainer = document.getElementById('output-container');
-        outputContainer.oncontextmenu = (e) => {
-            e.preventDefault();
-            if (confirm('Limpar Output?')) outputContainer.innerHTML = '';
-        };
+        // Listen to UVLM events
+        ipcRenderer.on('uvlm:output', (_, { type, text }) => {
+            this.logOutput(text, type);
+        });
+
+        ipcRenderer.on('uvlm:clear', () => {
+            if (this.outputContent) this.outputContent.innerHTML = '';
+        });
+
+        ipcRenderer.on('uvlm:status', (_, status) => {
+            this.app.setStatus(this._statusText(status), status);
+        });
+    }
+
+    _statusText(status) {
+        return { idle: 'UVLM: Pronto', building: 'Compilando...', running: 'Rodando...', error: 'UVLM: Erro' }[status] || 'UVLM: Idle';
     }
 
     switchPanel(name) {
@@ -41,53 +94,61 @@ export class BottomPanel {
         if (name === 'terminal') {
             this.app.terminal.focus();
         }
+        if (name === 'output') {
+            // Scroll to bottom on switch
+            if (this.outputContent) {
+                this.outputContent.scrollTop = this.outputContent.scrollHeight;
+            }
+        }
     }
 
     logOutput(text, type = 'BUILD') {
-        const colors = {
-            BUILD: '#5591C7',
-            RUN: '#4EC94E',
-            ERROR: '#E53030',
-            WARN: '#E5A030',
-            EXIT: '#6A6A6A'
-        };
+        if (!this.outputContent) return;
 
-        const container = document.getElementById('output-container');
         const line = document.createElement('div');
-        line.style.color = colors[type] || '#D4D4D4';
-        line.style.fontFamily = 'monospace';
-        line.style.fontSize = '12px';
-        line.textContent = `[${type}] ${text}`;
-        
-        // Link errors
+        line.className = 'output-line';
+        line.style.color = OUTPUT_COLORS[type] || '#D4D4D4';
+
+        const prefix = document.createElement('span');
+        prefix.className = 'output-prefix';
+        prefix.textContent = OUTPUT_PREFIXES[type] || '         ';
+
+        const content = document.createElement('span');
+        content.textContent = text;
+
+        line.appendChild(prefix);
+        line.appendChild(content);
+
+        // Error lines with UZ-XXXX:line:col are clickable
         const match = text.match(/UZ-\d+:(\d+):(\d+)/);
         if (match) {
-            line.style.cursor = 'pointer';
-            line.style.textDecoration = 'underline';
-            line.onclick = () => {
+            line.classList.add('output-line-clickable');
+            line.title = `Ir para linha ${match[1]}, coluna ${match[2]}`;
+            line.addEventListener('click', () => {
                 this.app.jumpToLine(parseInt(match[1]), parseInt(match[2]));
-            };
+            });
         }
 
-        container.appendChild(line);
-        container.scrollTop = container.scrollHeight;
+        this.outputContent.appendChild(line);
+        this.outputContent.scrollTop = this.outputContent.scrollHeight;
     }
 
     renderProblems(problems) {
         const container = document.getElementById('problems-container');
         container.innerHTML = '';
+        const badge = document.getElementById('error-count');
 
         if (problems.length === 0) {
             container.innerHTML = '<div style="padding:10px; color:#4EC94E">✓ Nenhum problema encontrado</div>';
+            badge.textContent = '0';
+            badge.style.display = 'none';
             return;
         }
 
         problems.forEach(p => {
             const div = document.createElement('div');
             div.className = `problem-item problem-${p.severity}`;
-            div.style.padding = '4px 10px';
-            div.style.cursor = 'pointer';
-            div.style.borderBottom = '1px solid #252525';
+            div.style.cssText = 'padding:4px 10px; cursor:pointer; border-bottom:1px solid #252525;';
             div.innerHTML = `
                 <span style="color:${p.severity === 'error' ? '#E53030' : '#E5A030'}">${p.severity === 'error' ? '⊗' : '⚠'}</span>
                 <span style="color:#808080; margin-left:10px">${p.file}:${p.line}</span>
@@ -100,8 +161,6 @@ export class BottomPanel {
             container.appendChild(div);
         });
 
-        // Update badge
-        const badge = document.getElementById('error-count');
         const errors = problems.filter(p => p.severity === 'error').length;
         badge.textContent = errors;
         badge.style.display = errors > 0 ? 'inline' : 'none';

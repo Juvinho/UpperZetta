@@ -103,7 +103,7 @@ componente Home {
 |---|---|
 | `.uz` | Arquivo fonte UpperZetta, editável. |
 | `.uzb` | Bytecode compilado pelo UVLM. Intencionalmente hostil à decompilação. |
-| `.uzs` | Arquivo **selado** — fonte criptografado com AES-256-CBC + PBKDF2 (100.000 iterações). |
+| `.uzs` | Arquivo **selado** — fonte criptografado com AES-256-GCM + PBKDF2 (600.000 iterações). Totalmente reversível. |
 
 ## UVLM
 
@@ -152,7 +152,7 @@ A proteção da UpperZetta opera em três camadas:
 
 **1. Bytecode hostil.** O `.uzb` é gerado com instruction set proprietário e layout polimórfico. Cada build pode produzir bytecode estruturalmente diferente para o mesmo fonte.
 
-**2. Arquivos selados.** O `.uzs` encapsula o fonte com AES-256-CBC derivado via PBKDF2 com 100.000 iterações. Sem a senha, recuperar o fonte original é inviável dentro de qualquer janela de tempo útil.
+**2. Arquivos selados.** O `.uzs` encapsula o fonte com AES-256-GCM derivado via PBKDF2 com 600.000 iterações. O ZettaSource permite a reversão total do `.uzs` para o `.uz` original mediante senha, facilitando o trabalho colaborativo seguro. Sem a senha, recuperar o fonte original é inviável dentro de qualquer janela de tempo útil.
 
 **3. GLP.** A filiação ao Grupo de Linguagens Palíndromas adiciona ofuscação composta — cada linguagem do grupo contribui com uma camada que, combinada, multiplica o custo de reversão.
 

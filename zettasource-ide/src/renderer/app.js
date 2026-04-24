@@ -10,10 +10,16 @@ import { CommandPalette } from './commandPalette.js';
 import { Settings } from './settings.js';
 import { WelcomeScreen } from './welcome.js';
 import { WindowControls } from './windowControls.js';
+import { ExportUZS } from './exportUZS.js';
+import { UZSOpener } from './uzsOpener.js';
 
 const { ipcRenderer } = window.require('electron');
 const Store = window.require('electron-store');
 const path = window.require('path');
+
+function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+}
 
 class App {
     constructor() {
@@ -31,6 +37,8 @@ class App {
         this.commandPalette = new CommandPalette(this);
         this.settings = new Settings(this);
         this.welcome = new WelcomeScreen(this);
+        this.exportUZS = new ExportUZS(this);
+        this.uzsOpener = new UZSOpener(this);
         this.keybindings = new Keybindings(this);
         this.windowControls = new WindowControls(this);
 
@@ -38,8 +46,99 @@ class App {
     }
 
     async init() {
+        this.initLayoutResizers();
         this.welcome.show();
         this.setStatus('UVLM: Idle', 'idle');
+    }
+
+    initLayoutResizers() {
+        const mainContainer = document.getElementById('main-container');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarResizer = document.getElementById('sidebar-resizer');
+        const editorArea = document.getElementById('editor-area');
+        const bottomPanel = document.getElementById('bottom-panel');
+        const panelResizer = document.getElementById('panel-resizer');
+
+        if (!mainContainer || !sidebar || !sidebarResizer || !editorArea || !bottomPanel || !panelResizer) {
+            return;
+        }
+
+        const minSidebarWidth = 180;
+        const minEditorWidth = 320;
+        const minBottomPanelHeight = 120;
+        const minEditorHeight = 120;
+
+        const applySidebarWidth = (nextWidth) => {
+            const maxSidebarWidth = Math.max(
+                minSidebarWidth,
+                mainContainer.clientWidth - minEditorWidth - sidebarResizer.offsetWidth
+            );
+            const width = clamp(nextWidth, minSidebarWidth, maxSidebarWidth);
+            sidebar.style.width = `${width}px`;
+            return width;
+        };
+
+        const applyBottomPanelHeight = (nextHeight) => {
+            const maxBottomPanelHeight = Math.max(minBottomPanelHeight, editorArea.clientHeight - minEditorHeight);
+            const height = clamp(nextHeight, minBottomPanelHeight, maxBottomPanelHeight);
+            bottomPanel.style.height = `${height}px`;
+            return height;
+        };
+
+        const savedSidebarWidth = Number(this.config.get('layout.sidebarWidth'));
+        if (Number.isFinite(savedSidebarWidth) && savedSidebarWidth > 0) {
+            applySidebarWidth(savedSidebarWidth);
+        }
+
+        const savedBottomPanelHeight = Number(this.config.get('layout.bottomPanelHeight'));
+        if (Number.isFinite(savedBottomPanelHeight) && savedBottomPanelHeight > 0) {
+            applyBottomPanelHeight(savedBottomPanelHeight);
+        }
+
+        sidebarResizer.addEventListener('mousedown', (event) => {
+            event.preventDefault();
+            document.body.classList.add('is-resizing-sidebar');
+
+            const onMouseMove = (moveEvent) => {
+                const left = mainContainer.getBoundingClientRect().left;
+                const nextWidth = moveEvent.clientX - left;
+                applySidebarWidth(nextWidth);
+            };
+
+            const onMouseUp = () => {
+                document.body.classList.remove('is-resizing-sidebar');
+                document.removeEventListener('mousemove', onMouseMove);
+                this.config.set('layout.sidebarWidth', Math.round(sidebar.getBoundingClientRect().width));
+            };
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp, { once: true });
+        });
+
+        panelResizer.addEventListener('mousedown', (event) => {
+            event.preventDefault();
+            document.body.classList.add('is-resizing-panel');
+
+            const onMouseMove = (moveEvent) => {
+                const editorRect = editorArea.getBoundingClientRect();
+                const nextHeight = editorRect.bottom - moveEvent.clientY;
+                applyBottomPanelHeight(nextHeight);
+            };
+
+            const onMouseUp = () => {
+                document.body.classList.remove('is-resizing-panel');
+                document.removeEventListener('mousemove', onMouseMove);
+                this.config.set('layout.bottomPanelHeight', Math.round(bottomPanel.getBoundingClientRect().height));
+            };
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp, { once: true });
+        });
+
+        window.addEventListener('resize', () => {
+            applySidebarWidth(sidebar.getBoundingClientRect().width);
+            applyBottomPanelHeight(bottomPanel.getBoundingClientRect().height);
+        });
     }
 
     async openFolder() {
@@ -57,10 +156,27 @@ class App {
                 filters: [{ name: 'UpperZetta', extensions: ['uz', 'uzs', 'uzb'] }]
             });
         }
-        if (filePath) {
-            const content = await ipcRenderer.invoke('fs:readFile', filePath);
-            this.tabs.open(filePath, content);
+        if (!filePath) {
+            return;
+        }
+
+        const extension = path.extname(filePath).toLowerCase();
+
+        try {
+            if (extension === '.uzs') {
+                const decryptedSource = await this.uzsOpener.open(filePath);
+                const decryptedName = `${path.basename(filePath, '.uzs')}.uz`;
+                this.tabs.openDecrypted(decryptedName, decryptedSource);
+            } else {
+                const content = await ipcRenderer.invoke('fs:readFile', filePath);
+                this.tabs.open(filePath, content);
+            }
             this.welcome.hide();
+        } catch (error) {
+            if (error?.message === 'cancelled') {
+                return;
+            }
+            this.logError(error instanceof Error ? error.message : 'Falha ao abrir arquivo.');
         }
     }
 

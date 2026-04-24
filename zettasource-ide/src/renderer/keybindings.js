@@ -74,6 +74,12 @@ export class Keybindings {
                 this.app.commandPalette.show();
             }
 
+            // Ctrl+Shift+E - Exportar .uzs
+            if (ctrl && shift && e.key === 'E') {
+                e.preventDefault();
+                window._openExportUZS?.();
+            }
+
             // Ctrl+, - Settings
             if (ctrl && e.key === ',') {
                 e.preventDefault();

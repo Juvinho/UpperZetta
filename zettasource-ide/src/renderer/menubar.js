@@ -15,6 +15,8 @@ export class Menubar {
                 { label: 'Salvar Como...', shortcut: 'Ctrl+Shift+S', action: () => this.app.saveActiveAs() },
                 { label: 'Salvar Todos', shortcut: 'Ctrl+K S', action: () => this.app.saveAll() },
                 { type: 'divider' },
+                { label: 'Selar Código-Fonte (.uzs)...', shortcut: 'Ctrl+Shift+E', action: () => window._openExportUZS?.() },
+                { type: 'divider' },
                 { label: 'Sair', shortcut: 'Alt+F4', action: () => window.close() }
             ],
             'Editar': [
@@ -38,6 +40,8 @@ export class Menubar {
             'UVLM': [
                 { label: 'Compilar Arquivo', shortcut: 'Ctrl+Shift+B', action: () => this.app.uvlm.compileActive() },
                 { label: 'Executar', shortcut: 'F5', action: () => this.app.uvlm.runActive() },
+                { type: 'divider' },
+                { label: 'Compilar e Selar (.uzs)...', action: () => this.app.uvlm.compileAndSeal() },
                 { type: 'divider' },
                 { label: 'Configurar UVLM...', action: () => this.app.showSettings('uvlm') }
             ],

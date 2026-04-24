@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const Store = require('electron-store');
 const { UVLMRunner } = require('./uvlm');
 
@@ -134,9 +135,23 @@ function createWindow() {
     });
 
     // --- FILE SYSTEM IPC ---
-    ipcMain.handle('fs:readFile', async (_, filePath) => fs.readFileSync(filePath, 'utf8'));
-    ipcMain.handle('fs:writeFile', async (_, { filePath, content }) => {
-        fs.writeFileSync(filePath, content, 'utf8');
+    ipcMain.handle('fs:readFile', async (_, filePath, encoding = 'utf8') => {
+        return fs.readFileSync(filePath, encoding === 'buffer' ? null : encoding);
+    });
+    ipcMain.handle('fs:writeFile', async (_, { filePath, content, encoding = 'utf8' }) => {
+        fs.writeFileSync(filePath, content, encoding === 'buffer' ? Buffer.from(content) : encoding);
+        return true;
+    });
+    ipcMain.handle('fs:copyFile', async (_, { src, dest }) => {
+        fs.copyFileSync(src, dest);
+        return true;
+    });
+    ipcMain.handle('fs:unlink', async (_, filePath) => {
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        return true;
+    });
+    ipcMain.handle('fs:rename', async (_, { oldPath, newPath }) => {
+        fs.renameSync(oldPath, newPath);
         return true;
     });
     ipcMain.handle('fs:mkdir', async (_, dirPath) => {
@@ -192,6 +207,179 @@ function createWindow() {
     ipcMain.handle('uvlm:run', async (_, { uzbPath }) => uvlm.run(uzbPath));
     ipcMain.handle('uvlm:buildAndRun', async (_, { filePath }) => uvlm.buildAndRun(filePath));
     ipcMain.on('uvlm:stop', () => { if (uvlm) uvlm.stop(); });
+
+    // --- UZS UNSEAL ---
+    ipcMain.handle('uvlm:unsealUZS', async (_, { filePath, password }) => {
+        try {
+            const uzsBuffer = fs.readFileSync(filePath);
+            if (uzsBuffer.length < 4) return { success: false, error: 'Arquivo UZS inválido.' };
+
+            // Suporte a múltiplos formatos (UZS! novo/seguro, UZS1 legado/export)
+            const magic = uzsBuffer.slice(0, 4).toString('utf8');
+            const isLegacy = (magic === 'UZS1');
+
+            if (magic !== 'UZS!' && magic !== 'UZS1') {
+                return { success: false, error: 'Não é um arquivo .uzs válido.' };
+            }
+
+            let salt, iv, payloadStart, iterations, algo;
+
+            if (isLegacy) {
+                // Formato UZS1 (Legado/Export): magic(4) + salt(16) + iv(16) + ciphertext
+                if (uzsBuffer.length < 36) return { success: false, error: 'Arquivo UZS legado corrompido.' };
+                salt = uzsBuffer.slice(4, 20);
+                iv = uzsBuffer.slice(20, 36);
+                payloadStart = 36;
+                iterations = 100000;
+                algo = 'aes-256-cbc';
+            } else {
+                // Formato UZS! (Novo): magic(4) + mirror(4) + version(2) + salt(16) + iv(12) + reserved(6) + metadata(N) + ciphertext
+                if (uzsBuffer.length < 44) return { success: false, error: 'Arquivo UZS novo corrompido.' };
+                salt = uzsBuffer.slice(10, 26);
+                iv = uzsBuffer.slice(26, 38);
+                iterations = 600000;
+                algo = 'aes-256-gcm';
+
+                // Extrair metadados (string null-terminated)
+                payloadStart = 44;
+                let metaEnd = payloadStart;
+                while (metaEnd < uzsBuffer.length && uzsBuffer[metaEnd] !== 0x00) {
+                    metaEnd++;
+                }
+                
+                try {
+                    const metaStr = uzsBuffer.slice(payloadStart, metaEnd).toString('utf8');
+                    metadata = JSON.parse(metaStr);
+                } catch (e) {
+                    console.warn('[UZS] Falha ao ler metadados:', e.message);
+                }
+                
+                payloadStart = metaEnd + 1; // Pular o nulo
+            }
+
+            // Derivação de chave PBKDF2-SHA512
+            const key = await new Promise((res, rej) =>
+                crypto.pbkdf2(password, salt, iterations, 32, 'sha512', (e, k) => e ? rej(e) : res(k))
+            );
+
+            let decrypted;
+            try {
+                if (algo === 'aes-256-gcm') {
+                    const payload = uzsBuffer.slice(payloadStart);
+                    const authTag = payload.slice(payload.length - 16);
+                    const ciphertext = payload.slice(0, payload.length - 16);
+
+                    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+                    decipher.setAuthTag(authTag);
+                    decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+                } else {
+                    const ciphertext = uzsBuffer.slice(payloadStart);
+                    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+                    decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+                }
+            } catch (_) {
+                return { success: false, error: 'Senha incorreta.' };
+            }
+
+            // O formato novo (UZS!) tem 64 bytes de padding aleatório no início.
+            // O formato legado (UZS1) não possui esse padding.
+            let sourceBuffer;
+            if (isLegacy) {
+                sourceBuffer = decrypted;
+            } else {
+                if (decrypted.length < 64) return { success: false, error: 'Conteúdo do arquivo corrompido.' };
+                sourceBuffer = decrypted.slice(64);
+            }
+
+            const source = sourceBuffer.toString('utf8');
+            const isBytecode = metadata?.type === 'bytecode' || source.startsWith('UZB!!BZU');
+
+            return { success: true, source, isBytecode, metadata };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcMain.handle('uvlm:getStatus', () => uvlm?.currentStatus || 'idle');
+
+    ipcMain.handle('uvlm:getVersion', async () => {
+        if (!uvlm) return 'UpperZetta UVLM 1.0';
+        return uvlm.getVersion();
+    });
+
+    ipcMain.handle('uvlm:clean', async (_, { dir }) => {
+        let count = 0;
+        try {
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            for (const e of entries) {
+                if (!e.isDirectory() && e.name.endsWith('.uzb')) {
+                    fs.unlinkSync(path.join(dir, e.name));
+                    count++;
+                }
+            }
+        } catch (e) { console.error('[uvlm:clean]', e); }
+        return count;
+    });
+
+    ipcMain.handle('uvlm:exportUZS', async (_, { filePath, password }) => {
+        try {
+            let targetFilePath = filePath;
+            
+            // Se o usuário tentar selar um .uzb, tentamos encontrar o .uz original para manter o código editável
+            if (filePath.endsWith('.uzb')) {
+                const sourcePath = filePath.replace('.uzb', '.uz');
+                if (fs.existsSync(sourcePath)) {
+                    targetFilePath = sourcePath;
+                }
+            }
+
+            const sourceCode = fs.readFileSync(targetFilePath, 'utf8');
+            const isBytecode = sourceCode.startsWith('UZB!!BZU');
+            
+            // PBKDF2-SHA512, 600 000 iters, 32-byte key
+            const salt = crypto.randomBytes(16);
+            const key = await new Promise((res, rej) =>
+                crypto.pbkdf2(password, salt, 600000, 32, 'sha512', (err, k) => err ? rej(err) : res(k))
+            );
+
+            // AES-256-GCM
+            const iv = crypto.randomBytes(12);
+            const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+            
+            // Adicionar 64 bytes de padding aleatório
+            const padding = crypto.randomBytes(64);
+            const plaintext = Buffer.concat([padding, Buffer.from(sourceCode, 'utf8')]);
+            
+            const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+            const authTag = cipher.getAuthTag();
+
+            // Metadata: agora indicamos se o que está lá dentro é fonte ou bytecode
+            const metadataObj = {
+                type: isBytecode ? 'bytecode' : 'source',
+                original_file: path.basename(targetFilePath),
+                sealed_at: new Date().toISOString()
+            };
+            const metadataStr = JSON.stringify(metadataObj);
+            const metadataBuf = Buffer.concat([Buffer.from(metadataStr, 'utf8'), Buffer.from([0x00])]);
+
+            // Formato UZS!: magic(4) + mirror(4) + version(2) + salt(16) + iv(12) + reserved(6) + metadata(N) + ciphertext + authTag(16)
+            const magic = Buffer.from('UZS!');
+            const mirror = Buffer.from('!SZU');
+            const version = Buffer.alloc(2); version.writeUInt16BE(1);
+            const reserved = Buffer.alloc(6);
+
+            const uzsData = Buffer.concat([
+                magic, mirror, version, salt, iv, reserved, metadataBuf, encrypted, authTag
+            ]);
+
+            const uzsPath = filePath.replace(/\.uz[sb]?$/, '.uzs');
+            fs.writeFileSync(uzsPath, uzsData);
+
+            return { success: true, uzsPath, isSource: !isBytecode };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    });
 }
 
 app.whenReady().then(createWindow);

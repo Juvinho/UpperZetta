@@ -1,3 +1,4 @@
+
 /*
  * Decompiled with CFR 0.152.
  */
@@ -17,7 +18,8 @@ class UVLM {
     }
 
     int readInt() {
-        int n = (this.loader.blockA[this.ip] & 0xFF) << 24 | (this.loader.blockA[this.ip + 1] & 0xFF) << 16 | (this.loader.blockA[this.ip + 2] & 0xFF) << 8 | this.loader.blockA[this.ip + 3] & 0xFF;
+        int n = (this.loader.blockA[this.ip] & 0xFF) << 24 | (this.loader.blockA[this.ip + 1] & 0xFF) << 16
+                | (this.loader.blockA[this.ip + 2] & 0xFF) << 8 | this.loader.blockA[this.ip + 3] & 0xFF;
         this.ip += 4;
         return n;
     }
@@ -37,7 +39,7 @@ class UVLM {
     }
 
     float getFloat(UVValue v) {
-        return v.val instanceof Float ? (Float)v.val : ((Integer)v.val).floatValue();
+        return v.val instanceof Float ? (Float) v.val : ((Integer) v.val).floatValue();
     }
 
     boolean isFloat(UVValue v1, UVValue v2) {
@@ -83,82 +85,109 @@ class UVLM {
                         this.stack.push(new UVValue(6, getFloat(l) + getFloat(r)));
                         break;
                     }
-                    this.stack.push(new UVValue(1, (Integer)l.val + (Integer)r.val));
+                    this.stack.push(new UVValue(1, (Integer) l.val + (Integer) r.val));
                     break;
                 }
                 case 8: {
                     UVValue r = this.stack.pop();
                     UVValue l = this.stack.pop();
-                    if (isFloat(l, r)) { this.stack.push(new UVValue(6, getFloat(l) - getFloat(r))); break; }
-                    this.stack.push(new UVValue(1, (Integer)l.val - (Integer)r.val));
+                    if (isFloat(l, r)) {
+                        this.stack.push(new UVValue(6, getFloat(l) - getFloat(r)));
+                        break;
+                    }
+                    this.stack.push(new UVValue(1, (Integer) l.val - (Integer) r.val));
                     break;
                 }
                 case 9: {
                     UVValue r = this.stack.pop();
                     UVValue l = this.stack.pop();
-                    if (isFloat(l, r)) { this.stack.push(new UVValue(6, getFloat(l) * getFloat(r))); break; }
-                    this.stack.push(new UVValue(1, (Integer)l.val * (Integer)r.val));
+                    if (isFloat(l, r)) {
+                        this.stack.push(new UVValue(6, getFloat(l) * getFloat(r)));
+                        break;
+                    }
+                    this.stack.push(new UVValue(1, (Integer) l.val * (Integer) r.val));
                     break;
                 }
                 case 10: {
                     UVValue r = this.stack.pop();
                     UVValue l = this.stack.pop();
-                    if (isFloat(l, r)) { this.stack.push(new UVValue(6, getFloat(l) / getFloat(r))); break; }
-                    this.stack.push(new UVValue(1, (Integer)l.val / (Integer)r.val));
+                    if (isFloat(l, r)) {
+                        this.stack.push(new UVValue(6, getFloat(l) / getFloat(r)));
+                        break;
+                    }
+                    this.stack.push(new UVValue(1, (Integer) l.val / (Integer) r.val));
                     break;
                 }
                 case 11: {
                     UVValue r = this.stack.pop();
                     UVValue l = this.stack.pop();
-                    if (isFloat(l, r)) { this.stack.push(new UVValue(3, getFloat(l) == getFloat(r))); break; }
+                    if (isFloat(l, r)) {
+                        this.stack.push(new UVValue(3, getFloat(l) == getFloat(r)));
+                        break;
+                    }
                     this.stack.push(new UVValue(3, l.val.equals(r.val)));
                     break;
                 }
                 case 12: {
                     UVValue r = this.stack.pop();
                     UVValue l = this.stack.pop();
-                    if (isFloat(l, r)) { this.stack.push(new UVValue(3, getFloat(l) != getFloat(r))); break; }
+                    if (isFloat(l, r)) {
+                        this.stack.push(new UVValue(3, getFloat(l) != getFloat(r)));
+                        break;
+                    }
                     this.stack.push(new UVValue(3, !l.val.equals(r.val)));
                     break;
                 }
                 case 13: {
                     UVValue r = this.stack.pop();
                     UVValue l = this.stack.pop();
-                    if (isFloat(l, r)) { this.stack.push(new UVValue(3, getFloat(l) < getFloat(r))); break; }
-                    this.stack.push(new UVValue(3, (Integer)l.val < (Integer)r.val));
+                    if (isFloat(l, r)) {
+                        this.stack.push(new UVValue(3, getFloat(l) < getFloat(r)));
+                        break;
+                    }
+                    this.stack.push(new UVValue(3, (Integer) l.val < (Integer) r.val));
                     break;
                 }
                 case 14: {
                     UVValue r = this.stack.pop();
                     UVValue l = this.stack.pop();
-                    if (isFloat(l, r)) { this.stack.push(new UVValue(3, getFloat(l) > getFloat(r))); break; }
-                    this.stack.push(new UVValue(3, (Integer)l.val > (Integer)r.val));
+                    if (isFloat(l, r)) {
+                        this.stack.push(new UVValue(3, getFloat(l) > getFloat(r)));
+                        break;
+                    }
+                    this.stack.push(new UVValue(3, (Integer) l.val > (Integer) r.val));
                     break;
                 }
                 case 15: {
                     UVValue r = this.stack.pop();
                     UVValue l = this.stack.pop();
-                    if (isFloat(l, r)) { this.stack.push(new UVValue(3, getFloat(l) <= getFloat(r))); break; }
-                    this.stack.push(new UVValue(3, (Integer)l.val <= (Integer)r.val));
+                    if (isFloat(l, r)) {
+                        this.stack.push(new UVValue(3, getFloat(l) <= getFloat(r)));
+                        break;
+                    }
+                    this.stack.push(new UVValue(3, (Integer) l.val <= (Integer) r.val));
                     break;
                 }
                 case 17: {
                     UVValue r = this.stack.pop();
                     UVValue l = this.stack.pop();
-                    if (isFloat(l, r)) { this.stack.push(new UVValue(3, getFloat(l) >= getFloat(r))); break; }
-                    this.stack.push(new UVValue(3, (Integer)l.val >= (Integer)r.val));
+                    if (isFloat(l, r)) {
+                        this.stack.push(new UVValue(3, getFloat(l) >= getFloat(r)));
+                        break;
+                    }
+                    this.stack.push(new UVValue(3, (Integer) l.val >= (Integer) r.val));
                     break;
                 }
                 case 18: {
                     UVValue uVValue = this.stack.pop();
                     UVValue uVValue12 = this.stack.pop();
-                    this.stack.push(new UVValue(3, (Boolean)uVValue12.val != false && (Boolean)uVValue.val != false));
+                    this.stack.push(new UVValue(3, (Boolean) uVValue12.val != false && (Boolean) uVValue.val != false));
                     break;
                 }
                 case 19: {
                     UVValue uVValue = this.stack.pop();
                     UVValue uVValue13 = this.stack.pop();
-                    this.stack.push(new UVValue(3, (Boolean)uVValue13.val != false || (Boolean)uVValue.val != false));
+                    this.stack.push(new UVValue(3, (Boolean) uVValue13.val != false || (Boolean) uVValue.val != false));
                     break;
                 }
                 case 21: {
@@ -168,21 +197,23 @@ class UVLM {
                 }
                 case 22: {
                     int n = this.readInt();
-                    if (!((Boolean)this.stack.pop().val).booleanValue()) break;
+                    if (!((Boolean) this.stack.pop().val).booleanValue())
+                        break;
                     this.ip += n;
                     break;
                 }
                 case 23: {
                     int n = this.readInt();
-                    boolean bl = (Boolean)this.stack.pop().val;
-                    if (bl) break;
+                    boolean bl = (Boolean) this.stack.pop().val;
+                    if (bl)
+                        break;
                     this.ip += n;
                     break;
                 }
                 case 26: {
                     Object object = this.stack.pop().val;
                     if (object instanceof Boolean) {
-                        System.out.println((Boolean)object != false ? "true" : "false");
+                        System.out.println((Boolean) object != false ? "true" : "false");
                         break;
                     }
                     System.out.println(object);
@@ -194,14 +225,14 @@ class UVLM {
                 }
                 case 29: {
                     String string = this.readStr();
-                    UVObject uVObject = (UVObject)this.stack.pop().val;
+                    UVObject uVObject = (UVObject) this.stack.pop().val;
                     this.stack.push(uVObject.fields.getOrDefault(string, new UVValue(5, null)));
                     break;
                 }
                 case 30: {
                     String string = this.readStr();
                     UVValue uVValue = this.stack.pop();
-                    UVObject uVObject = (UVObject)this.stack.pop().val;
+                    UVObject uVObject = (UVObject) this.stack.pop().val;
                     uVObject.fields.put(string, uVValue);
                     break;
                 }
@@ -213,15 +244,16 @@ class UVLM {
                         uVValueArray[i] = this.stack.pop();
                     }
                     Object object = this.stack.pop();
-                    String string2 = ((UVObject)((UVValue)object).val).cls + "." + string;
+                    String string2 = ((UVObject) ((UVValue) object).val).cls + "." + string;
                     FuncInfo funcInfo = null;
                     for (FuncInfo funcInfo2 : this.loader.funcs) {
-                        if (!funcInfo2.name.equals(string2)) continue;
+                        if (!funcInfo2.name.equals(string2))
+                            continue;
                         funcInfo = funcInfo2;
                     }
                     this.callStack.push(new Frame(this.ip, this.locals));
                     this.locals = new UVValue[256];
-                    this.locals[0] = (UVValue)object;
+                    this.locals[0] = (UVValue) object;
                     for (int i = 0; i < n; ++i) {
                         this.locals[i + 1] = uVValueArray[i];
                     }
@@ -237,7 +269,8 @@ class UVLM {
                     }
                     Object object = null;
                     for (FuncInfo funcInfo : this.loader.funcs) {
-                        if (!funcInfo.name.equals(string)) continue;
+                        if (!funcInfo.name.equals(string))
+                            continue;
                         object = funcInfo;
                     }
                     this.callStack.push(new Frame(this.ip, this.locals));
@@ -245,7 +278,7 @@ class UVLM {
                     for (int i = 0; i < n; ++i) {
                         this.locals[i] = uVValueArray[i];
                     }
-                    this.ip = ((FuncInfo)object).offset;
+                    this.ip = ((FuncInfo) object).offset;
                     break;
                 }
                 case 25: {
@@ -264,23 +297,23 @@ class UVLM {
                     break;
                 }
                 case 34: {
-                    int size = (Integer)this.stack.pop().val;
+                    int size = (Integer) this.stack.pop().val;
                     UVValue[] arr = new UVValue[size];
                     for (int i = size - 1; i >= 0; --i) {
-                         arr[i] = this.stack.pop();
+                        arr[i] = this.stack.pop();
                     }
                     this.stack.push(new UVValue(7, arr));
                     break;
                 }
                 case 35: {
-                    int idx_arr = (Integer)this.stack.pop().val;
-                    UVValue[] arr = (UVValue[])this.stack.pop().val;
+                    int idx_arr = (Integer) this.stack.pop().val;
+                    UVValue[] arr = (UVValue[]) this.stack.pop().val;
                     this.stack.push(arr[idx_arr]);
                     break;
                 }
                 case 36: {
-                    int idx_arr = (Integer)this.stack.pop().val;
-                    UVValue[] arr = (UVValue[])this.stack.pop().val;
+                    int idx_arr = (Integer) this.stack.pop().val;
+                    UVValue[] arr = (UVValue[]) this.stack.pop().val;
                     UVValue v = this.stack.pop();
                     arr[idx_arr] = v;
                     break;

@@ -1,5 +1,9 @@
 const path = window.require('path');
 
+function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+}
+
 export class Tabs {
     constructor(app) {
         this.app = app;
@@ -7,6 +11,9 @@ export class Tabs {
         this.tabs = []; // { id, name, filePath, state, dirty }
         this.activeTabId = null;
         this.untitledCount = 0;
+        this.minTabWidth = 120;
+        this.maxTabWidth = 520;
+        this.defaultTabWidth = 180;
 
         this.init();
     }
@@ -24,7 +31,8 @@ export class Tabs {
             name,
             filePath,
             state: this.app.editor.createState(content),
-            dirty: false
+            dirty: false,
+            width: this.defaultTabWidth
         };
 
         this.tabs.push(tab);
@@ -39,6 +47,23 @@ export class Tabs {
             return;
         }
         this.createNew(filePath, content);
+    }
+
+    // Open decrypted content from a sealed file.
+    // displayName shown in tab, filePath = null → save triggers Save As dialog.
+    openDecrypted(displayName, content) {
+        const id = `tab-${Date.now()}`;
+        const tab = {
+            id,
+            name: displayName,
+            filePath: null,
+            state: this.app.editor.createState(content),
+            dirty: false,
+            width: this.defaultTabWidth
+        };
+        this.tabs.push(tab);
+        this.renderTabUI(tab);
+        this.activate(id);
     }
 
     activate(id) {
@@ -81,9 +106,11 @@ export class Tabs {
         const el = document.createElement('div');
         el.className = 'tab';
         el.dataset.tabId = tab.id;
+        el.style.width = `${tab.width || this.defaultTabWidth}px`;
         el.innerHTML = `
             <span class="tab-name">${tab.name}</span>
             <span class="tab-close material-icons">close</span>
+            <span class="tab-resizer" title="Arraste para redimensionar"></span>
         `;
 
         el.onclick = () => this.activate(tab.id);
@@ -92,7 +119,35 @@ export class Tabs {
             this.close(tab.id);
         };
 
+        el.querySelector('.tab-resizer').onmousedown = (event) => {
+            this.startResizeTab(event, tab, el);
+        };
+
         this.container.appendChild(el);
+    }
+
+    startResizeTab(event, tab, el) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const startX = event.clientX;
+        const startWidth = el.getBoundingClientRect().width;
+        document.body.classList.add('is-resizing-tab');
+
+        const onMouseMove = (moveEvent) => {
+            const delta = moveEvent.clientX - startX;
+            const nextWidth = clamp(startWidth + delta, this.minTabWidth, this.maxTabWidth);
+            tab.width = nextWidth;
+            el.style.width = `${nextWidth}px`;
+        };
+
+        const onMouseUp = () => {
+            document.body.classList.remove('is-resizing-tab');
+            document.removeEventListener('mousemove', onMouseMove);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp, { once: true });
     }
 
     markDirty(id) {

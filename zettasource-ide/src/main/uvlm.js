@@ -7,19 +7,12 @@ const store = new Store();
 
 function findUVLMJar() {
     const candidates = [
-        // 1. App instalado/empacotado
         path.join(process.resourcesPath, 'uvlm', 'Main.jar'),
-
-        // 2. Ao lado do executável
         path.join(path.dirname(app.getPath('exe')), 'uvlm', 'Main.jar'),
-
-        // 3. Desenvolvimento local — vários layouts possíveis
-        path.join(__dirname, '../../../Main.jar'),        // Upperzetta/Main.jar
-        path.join(__dirname, '../../../uvlm/Main.jar'),   // Upperzetta/uvlm/Main.jar
-        path.join(__dirname, '../../Main.jar'),           // zettasource-ide/Main.jar
-        path.join(__dirname, '../../uvlm/Main.jar'),      // zettasource-ide/uvlm/Main.jar
-
-        // 4. Configuração manual do usuário
+        path.join(__dirname, '../../../Main.jar'),
+        path.join(__dirname, '../../../uvlm/Main.jar'),
+        path.join(__dirname, '../../Main.jar'),
+        path.join(__dirname, '../../uvlm/Main.jar'),
         store.get('uvlm.jarPath')
     ].filter(Boolean);
 
@@ -29,7 +22,6 @@ function findUVLMJar() {
             return candidate;
         }
     }
-
     return null;
 }
 
@@ -55,6 +47,7 @@ class UVLMRunner {
         this.wc = webContents;
         this.jar = null;
         this.proc = null;
+        this.currentStatus = 'idle';
     }
 
     async init() {
@@ -82,12 +75,22 @@ class UVLMRunner {
         }
     }
 
+    clearOutput() {
+        if (!this.wc.isDestroyed()) {
+            this.wc.send('uvlm:clear');
+        }
+    }
+
     setStatus(status) {
+        this.currentStatus = status;
         if (!this.wc.isDestroyed()) {
             this.wc.send('uvlm:status', status);
         }
     }
 
+    // Compile .uz to .uzb.
+    // NOTE: Main.jar doesn't have a compile-only mode — passing file.uz also runs it.
+    // We capture stdout: "Compiled successfully to:" line → BUILD, rest → PROGRAM.
     async compile(filePath) {
         if (!this.jar) {
             const ok = await this.init();
@@ -95,58 +98,181 @@ class UVLMRunner {
         }
 
         return new Promise((resolve, reject) => {
+            this.clearOutput();
             this.setStatus('building');
             this.emit('BUILD', `Compilando ${path.basename(filePath)}...`);
 
-            const proc = spawn('java', ['-cp', this.jar, 'Main', 'build', filePath], {
+            // Main.jar API: java Main <file.uz>  → compiles + runs
+            //               java Main <file.uzb> → runs only
+            const proc = spawn('java', ['-cp', this.jar, 'Main', filePath], {
                 cwd: path.dirname(filePath)
             });
 
-            proc.stdout.on('data', d => this.emit('BUILD', d.toString().trim()));
-            proc.stderr.on('data', d => this.emit('ERROR', d.toString().trim()));
+            proc.stdout.on('data', d => {
+                d.toString().split('\n').forEach(line => {
+                    if (!line.trim()) return;
+                    const t = line.trimEnd();
+                    // Compilation success message from Main.java
+                    if (t.startsWith('Compiled successfully to:')) {
+                        this.emit('BUILD', `✓ ${t.replace('Compiled successfully to:', 'Compilado →')}`);
+                    } else {
+                        // Program ran as side-effect of compile — show as PROGRAM
+                        this.emit('PROGRAM', t);
+                    }
+                });
+            });
+
+            proc.stderr.on('data', d => {
+                d.toString().split('\n').forEach(line => {
+                    if (line.trim()) this.emit('ERROR', line.trimEnd());
+                });
+            });
 
             proc.on('close', code => {
-                if (code === 0) {
-                    const uzb = filePath.replace(/\.uz[s]?$/, '.uzb');
-                    this.emit('BUILD', `✓ Compilado → ${path.basename(uzb)}`);
+                const uzb = filePath.replace(/\.uz$/, '.uzb');
+                if (code === 0 && fs.existsSync(uzb)) {
+                    this.setStatus('idle');
+                    resolve(uzb);
+                } else if (code === 0) {
+                    // Compiled but .uzb might have a different name
                     this.setStatus('idle');
                     resolve(uzb);
                 } else {
                     this.emit('ERROR', `Compilação falhou (exit ${code})`);
                     this.setStatus('error');
-                    reject(code);
+                    reject(new Error(`exit ${code}`));
                 }
+            });
+
+            proc.on('error', err => {
+                this.emit('ERROR', `Erro ao iniciar compilador: ${err.message}`);
+                this.setStatus('error');
+                reject(err);
             });
         });
     }
 
+    // Run a pre-compiled .uzb file.
+    // java Main file.uzb  → executes UVLM, stdout = System.print() output
     async run(uzbPath) {
         if (!this.jar) return;
 
-        this.proc = spawn('java', ['-cp', this.jar, 'Main', 'run', uzbPath], {
-            cwd: path.dirname(uzbPath)
+        this.setStatus('running');
+        this.emit('RUN', `▶ Executando ${path.basename(uzbPath)}...`);
+        this.emit('RUN', '━'.repeat(50));
+
+        this.proc = spawn('java', ['-cp', this.jar, 'Main', uzbPath], {
+            cwd: path.dirname(uzbPath),
+            env: { ...process.env }
         });
 
-        this.setStatus('running');
-        this.emit('RUN', `Executando ${path.basename(uzbPath)}...`);
-        this.emit('RUN', '─'.repeat(40));
+        // stdout = System.print() output from user program
+        this.proc.stdout.on('data', d => {
+            d.toString().split('\n').forEach(line => {
+                if (line.trim()) this.emit('PROGRAM', line.trimEnd());
+            });
+        });
 
-        this.proc.stdout.on('data', d => this.emit('RUN', d.toString().trim()));
-        this.proc.stderr.on('data', d => this.emit('ERROR', d.toString().trim()));
+        // stderr = runtime errors
+        this.proc.stderr.on('data', d => {
+            d.toString().split('\n').forEach(line => {
+                if (line.trim()) this.emit('ERROR', line.trimEnd());
+            });
+        });
 
         this.proc.on('close', code => {
-            this.emit('RUN', '─'.repeat(40));
-            this.emit('EXIT', `Processo encerrado com código ${code}`);
+            this.emit('RUN', '━'.repeat(50));
+            this.emit(code === 0 ? 'EXIT' : 'ERROR',
+                `Processo encerrado com código ${code}`);
             this.setStatus(code === 0 ? 'idle' : 'error');
             this.proc = null;
         });
+
+        this.proc.on('error', err => {
+            this.emit('ERROR', `Erro ao iniciar processo: ${err.message}`);
+            this.setStatus('error');
+        });
     }
 
+    // Build .uz then run resulting .uzb as two separate Java invocations.
+    // compile() does both phases via Main.jar's .uz handler, but we also
+    // run separately so PROGRAM output is cleanly separated from BUILD.
     async buildAndRun(filePath) {
+        if (!this.jar) {
+            const ok = await this.init();
+            if (!ok) return;
+        }
+
         try {
-            const uzbPath = await this.compile(filePath);
-            if (uzbPath) await this.run(uzbPath);
-        } catch (e) { /* error emitted */ }
+            this.clearOutput();
+            this.setStatus('building');
+            this.emit('BUILD', `Compilando ${path.basename(filePath)}...`);
+
+            // Phase 1: compile only (we intercept before UVLM runs by checking .uzb)
+            const uzbPath = await this._compileOnly(filePath);
+            if (!uzbPath) return;
+
+            // Phase 2: run the .uzb
+            await this.run(uzbPath);
+        } catch (e) { /* already emitted */ }
+    }
+
+    // Compile .uz → .uzb without running the resulting bytecode.
+    // Strategy: spawn java Main file.uz, capture stdout. Main.java outputs
+    // "Compiled successfully to: xxx.uzb" then UVLM runs. We kill the proc
+    // right after .uzb is confirmed created and compilation message received.
+    _compileOnly(filePath) {
+        return new Promise((resolve, reject) => {
+            const uzbPath = filePath.replace(/\.uz$/, '.uzb');
+            let compiled = false;
+
+            const proc = spawn('java', ['-cp', this.jar, 'Main', filePath], {
+                cwd: path.dirname(filePath)
+            });
+
+            proc.stdout.on('data', d => {
+                const text = d.toString();
+                text.split('\n').forEach(line => {
+                    if (!line.trim()) return;
+                    const t = line.trimEnd();
+                    if (t.startsWith('Compiled successfully to:')) {
+                        compiled = true;
+                        this.emit('BUILD', `✓ Compilado → ${path.basename(uzbPath)}`);
+                        // Kill process — we don't want UVLM to run here
+                        // (run() will spawn a fresh process)
+                        try { proc.kill('SIGTERM'); } catch (_) {}
+                    } else if (!compiled) {
+                        // Pre-compilation output (unusual)
+                        this.emit('BUILD', t);
+                    }
+                    // Post-compilation UVLM output is discarded (we'll run separately)
+                });
+            });
+
+            proc.stderr.on('data', d => {
+                d.toString().split('\n').forEach(line => {
+                    if (line.trim()) this.emit('ERROR', line.trimEnd());
+                });
+            });
+
+            proc.on('close', code => {
+                // code may be non-zero if we killed it after successful compile
+                if (compiled || (code === 0 && fs.existsSync(uzbPath))) {
+                    this.setStatus('idle');
+                    resolve(uzbPath);
+                } else {
+                    this.emit('ERROR', `Compilação falhou (exit ${code})`);
+                    this.setStatus('error');
+                    reject(new Error(`exit ${code}`));
+                }
+            });
+
+            proc.on('error', err => {
+                this.emit('ERROR', `Erro ao iniciar compilador: ${err.message}`);
+                this.setStatus('error');
+                reject(err);
+            });
+        });
     }
 
     stop() {
@@ -156,6 +282,18 @@ class UVLMRunner {
             this.setStatus('idle');
             this.proc = null;
         }
+    }
+
+    async getVersion() {
+        if (!this.jar) return 'UVLM não encontrado';
+        return new Promise(resolve => {
+            let out = '';
+            const proc = spawn('java', ['-cp', this.jar, 'Main', '--version'], { stdio: 'pipe' });
+            proc.stdout.on('data', d => out += d.toString());
+            proc.stderr.on('data', d => out += d.toString());
+            proc.on('close', () => resolve(out.trim() || 'UpperZetta UVLM 1.0'));
+            proc.on('error', () => resolve('UpperZetta UVLM 1.0'));
+        });
     }
 }
 

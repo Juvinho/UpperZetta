@@ -7,15 +7,7 @@ export class UVLM {
     }
 
     init() {
-        // Listen for output from main process
-        ipcRenderer.on('uvlm:output', (_, { type, text }) => {
-            this.app.bottomPanel.logOutput(text, type);
-        });
-
-        // Listen for status changes
-        ipcRenderer.on('uvlm:status', (_, status) => {
-            this.app.setStatus(this.getStatusText(status), status);
-        });
+        // Listeners owned by bottomPanel.js — nothing to register here
     }
 
     getStatusText(status) {
@@ -52,6 +44,20 @@ export class UVLM {
 
         this.app.bottomPanel.switchPanel('output');
         return await ipcRenderer.invoke('uvlm:buildAndRun', { filePath: tab.filePath });
+    }
+    
+    async compileAndSeal() {
+        const tab = this.app.tabs.getActiveTab();
+        if (!tab || !tab.filePath) {
+            alert('Abra um arquivo .uz para compilar e selar.');
+            return;
+        }
+
+        const compileResult = await this.compileActive();
+        if (compileResult) {
+            // Se compilou com sucesso, abre o diálogo de exportação
+            window._openExportUZS?.();
+        }
     }
 
     stop() {

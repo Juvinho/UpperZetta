@@ -15,7 +15,7 @@ export class WelcomeScreen {
         this.overlay.innerHTML = `
             <div class="welcome-container">
                 <div class="welcome-left">
-                    <img src="../../build-resources/icon.png" class="welcome-logo">
+                    <img src="assets/UpperZetta.png" class="welcome-logo">
                     <h1>ZettaSource</h1>
                     <p class="version">v2.0.0</p>
                     
