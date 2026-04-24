@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZettaSource IDE</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../../node_modules/xterm/css/xterm.css">
+</head>
+<body class="dark-theme">
+    <div id="app">
+        <header id="titlebar">
+            <div class="window-controls-left">
+                <img src="../../build-resources/icon.png" alt="ZS" class="app-logo">
+                <nav id="menubar"></nav>
+            </div>
+            <div class="window-title" id="current-filename">ZettaSource IDE</div>
+            <div class="window-controls-right">
+                <button id="win-min" class="win-btn" title="Minimizar">
+                    <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor"/></svg>
+                </button>
+                <button id="win-max" class="win-btn" title="Maximizar">
+                    <svg class="wc-maximize-icon-normal" width="10" height="10" viewBox="0 0 10 10"><rect x="0" y="0" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+                    <svg class="wc-maximize-icon-restore" width="10" height="10" viewBox="0 0 10 10"><path d="m2,1h8v8h-8z m-2,2h8v8h-8z" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+                </button>
+                <button id="win-close" class="win-btn close-btn" title="Fechar">
+                    <svg width="10" height="10" viewBox="0 0 10 10"><line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" stroke-width="1.2"/><line x1="10" y1="0" x2="0" y2="10" stroke="currentColor" stroke-width="1.2"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <main id="main-container">
+            <aside id="sidebar">
+                <div class="sidebar-icons">
+                    <div class="icon-btn active" data-target="explorer" title="Explorer">folder</div>
+                    <div class="icon-btn" data-target="outline" title="Outline">account_tree</div>
+                    <div class="icon-btn" data-target="search" title="Search">search</div>
+                    <div class="spacer"></div>
+                    <div class="icon-btn" data-target="settings" title="Settings">settings</div>
+                </div>
+                <div id="sidebar-content"></div>
+            </aside>
+
+            <section id="editor-area">
+                <div id="tabs-bar">
+                    <div id="tabs-container"></div>
+                    <button id="new-tab-btn">add</button>
+                </div>
+                <div id="editor-container"></div>
+                
+                <div id="bottom-panel">
+                    <div id="panel-resizer"></div>
+                    <div class="panel-tabs">
+                        <button class="panel-tab active" data-panel="terminal">TERMINAL</button>
+                        <button class="panel-tab" data-panel="output">OUTPUT UVLM</button>
+                        <button class="panel-tab" data-panel="problems">PROBLEMS <span class="badge" id="error-count">0</span></button>
+                        <div class="spacer"></div>
+                        <button id="close-panel-btn">close</button>
+                    </div>
+                    <div id="panel-content">
+                        <div id="terminal-container" class="panel-view active"></div>
+                        <div id="output-container" class="panel-view"></div>
+                        <div id="problems-container" class="panel-view"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer id="statusbar">
+            <div class="status-left">
+                <div id="uvlm-status" class="status-item">UVLM: Idle</div>
+                <div id="cursor-pos" class="status-item">Line 1, Col 1</div>
+            </div>
+            <div class="status-right">
+                <div id="file-encoding" class="status-item">UTF-8</div>
+                <div id="language-mode" class="status-item">UpperZetta</div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="bundle.js"></script>
+</body>
+</html>

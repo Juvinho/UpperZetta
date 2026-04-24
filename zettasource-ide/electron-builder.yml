@@ -1,0 +1,127 @@
+appId: dev.zettasource.ide
+productName: ZettaSource
+copyright: "© 2026 ZettaSource"
+
+directories:
+  output: dist_final/
+  buildResources: build-resources/
+  app: ./
+
+files:
+  - src/**/*
+  - "!src/main/node_modules"
+
+extraResources:
+  - from: uvlm/
+    to: uvlm/
+    filter:
+      - "**/*.jar"
+      - "**/*.class"
+      - "**/*.exe"
+
+# ─────────────────────────────────────────
+# WINDOWS
+# ─────────────────────────────────────────
+win:
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+    - target: portable
+      arch: [x64]
+  icon: build-resources/icon.ico
+  requestedExecutionLevel: asInvoker
+  signAndEditExecutable: false
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: ZettaSource
+  installerIcon: build-resources/icon.ico
+  uninstallerIcon: build-resources/icon.ico
+  installerHeader: build-resources/installer-header.bmp
+  installerSidebar: build-resources/installer-sidebar.bmp
+  license: build-resources/LICENSE.rtf
+  language: "1046"
+  displayLanguageSelector: false
+  include: build-resources/installer.nsh
+  deleteAppDataOnUninstall: false
+
+# ─────────────────────────────────────────
+# macOS
+# ─────────────────────────────────────────
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  icon: build-resources/icon.icns
+  category: public.app-category.developer-tools
+
+dmg:
+  title: ZettaSource ${version}
+  background: build-resources/dmg-background.png
+  icon: build-resources/icon.icns
+  iconSize: 80
+
+# ─────────────────────────────────────────
+# LINUX
+# ─────────────────────────────────────────
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+  icon: build-resources/icon.png
+  category: Development
+  desktop:
+    entry:
+      Name: ZettaSource
+      Comment: IDE for UpperZetta Language
+      Categories: Development;IDE;TextEditor;
+
+# ─────────────────────────────────────────
+# FILE ASSOCIATIONS
+# ─────────────────────────────────────────
+fileAssociations:
+  - ext: uz
+    name: UpperZetta Source
+    description: Arquivo fonte UpperZetta
+    icon: build-resources/uz-file.ico
+    role: Editor
+    mimeType: text/x-upperzetta
+  - ext: up
+    name: UpperZetta Package
+    description: Pacote UpperZetta
+    icon: build-resources/uz-file.ico
+    role: Editor
+    mimeType: text/x-upperzetta
+  - ext: upz
+    name: UpperZetta Project
+    description: Projeto UpperZetta
+    icon: build-resources/uz-file.ico
+    role: Editor
+    mimeType: text/x-upperzetta
+  - ext: uzs
+    name: UpperZetta Sealed
+    description: Arquivo UpperZetta Selado
+    icon: build-resources/uzs-file.ico
+    role: Editor
+    mimeType: application/x-upperzetta-sealed
+  - ext: uzb
+    name: UpperZetta Bytecode
+    description: Bytecode UVLM
+    icon: build-resources/uzb-file.ico
+    role: Editor
+    mimeType: application/x-upperzetta-bytecode
+
+# ─────────────────────────────────────────
+# AUTO-UPDATE
+# ─────────────────────────────────────────
+publish:
+  provider: github
+  owner: zettasource
+  repo: zettasource-releases
+  releaseType: release

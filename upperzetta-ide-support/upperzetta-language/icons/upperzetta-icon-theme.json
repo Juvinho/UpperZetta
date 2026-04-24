@@ -1,0 +1,18 @@
+{
+  "iconDefinitions": {
+    "_uz_dark": { "iconPath": "./uz-icon-dark.svg" },
+    "_uz_light": { "iconPath": "./uz-icon-light.svg" }
+  },
+  "fileExtensions": {
+    "uz": "_uz_dark",
+    "up": "_uz_dark",
+    "upz": "_uz_dark"
+  },
+  "light": {
+    "fileExtensions": {
+      "uz": "_uz_light",
+      "up": "_uz_light",
+      "upz": "_uz_light"
+    }
+  }
+}

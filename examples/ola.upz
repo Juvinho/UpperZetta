@@ -1,0 +1,100 @@
+package in test.logic;
+
+e.const appName.str = "UpperZetta Test";
+
+fun canVote(age.int) >> boolean {
+	if (age >= 16) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+fun classifyAge(age.int) >> str {
+	if (age < 12) {
+		return "child";
+	} else if (age < 18) {
+		return "teen";
+	} else if (age < 60) {
+		return "adult";
+	} else {
+		return "elder";
+	}
+}
+
+fun scoreMessage(score.int) >> str {
+	if (score >= 90) {
+		return "excellent";
+	} else if (score >= 70) {
+		return "good";
+	} else if (score >= 50) {
+		return "ok";
+	} else {
+		return "fail";
+	}
+}
+
+class.public User {
+	let name.str;
+	let age.int;
+	let active.boolean;
+
+	fun isAdult() >> boolean {
+		return age >= 18;
+	}
+
+	fun canEnter() >> boolean {
+		if (active == true && age >= 18) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	fun profileLabel() >> str {
+		if (active == false) {
+			return "inactive";
+		} else if (age < 18) {
+			return "minor";
+		} else {
+			return "active_adult";
+		}
+	}
+}
+
+componente Home {
+	let title.str = "Condition Test";
+
+	fun render() {
+		let age.int = 21;
+		let score.int = 87;
+		let online.boolean = true;
+		let attempts.int = 0;
+
+		System.print(title);
+		System.print(appName);
+		System.print(classifyAge(age));
+		System.print(scoreMessage(score));
+
+		if (canVote(age)) {
+			System.print("can vote");
+		} else {
+			System.print("cannot vote");
+		}
+
+		if (online == true && score >= 70) {
+			System.print("approved and online");
+		} else {
+			System.print("not approved");
+		}
+
+		while (attempts < 3) {
+			System.print("attempt: " + attempts);
+			attempts = attempts + 1;
+		}
+
+		for (let i.int = 0; i < 5; i = i + 1) {
+			System.print("index: " + i);
+		}
+	}
+}

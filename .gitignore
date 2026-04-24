@@ -1,0 +1,58 @@
+# ── Node / npm ─────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# ── Electron build output ───────────────────────────────────────
+dist/
+out/
+zettasource-ide/out/
+zettasource-ide/dist/
+zettasource-ide/dist_final/
+
+# ── esbuild bundle (generated — run `npm run bundle` to rebuild) ─
+zettasource-ide/src/renderer/bundle.js
+
+# ── Vite / ZettaSource frontend build ──────────────────────────
+ZettaSource/dist/
+ZettaSource/.vite/
+ZettaSource/.turbo/
+ZettaSource/release/
+
+# ── Java compiled artifacts ──────────────────────────────────────
+# .java source files ARE committed; .class files are not
+*.class
+
+# ── UpperZetta compiled binaries ────────────────────────────────
+# .uz source files ARE committed; .uzb compiled files are not
+*.uzb
+
+# ── OS / editor junk ────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*.tmp
+
+# ── IDE / tool caches ────────────────────────────────────────────
+.idea/
+*.suo
+*.user
+
+# ── Python ──────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# ── electron-store (persisted user settings, not source) ────────
+zettasource-ide/app-config*
+
+# ── Sensitive / local-only ──────────────────────────────────────
+.env
+.env.local
+.env.*.local

@@ -1,0 +1,48 @@
+{
+  "name": "upperzetta-language",
+  "displayName": "UpperZetta Language",
+  "description": "Syntax highlighting, icons and language support for UpperZetta (.uz, .up, .upz)",
+  "version": "1.0.0",
+  "publisher": "zettasource",
+  "icon": "icons/upperzetta-logo.svg",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Programming Languages", "Themes"],
+  "keywords": ["upperzetta", "uz", "upz", "zettasource", "uvlm"],
+  "activationEvents": ["onLanguage:upperzetta"],
+  "main": "./src/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "upperzetta",
+        "aliases": ["UpperZetta", "uz"],
+        "extensions": [".uz", ".up", ".upz"],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/uz-icon-light.svg",
+          "dark":  "./icons/uz-icon-dark.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "upperzetta",
+        "scopeName": "source.upperzetta",
+        "path": "./syntaxes/upperzetta.tmLanguage.json"
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "upperzetta-icons",
+        "label": "UpperZetta File Icons",
+        "path": "./icons/upperzetta-icon-theme.json"
+      }
+    ],
+    "themes": [
+      {
+        "label": "UpperZetta Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/upperzetta-dark.json"
+      }
+    ]
+  }
+}

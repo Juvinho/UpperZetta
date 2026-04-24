@@ -1,0 +1,7 @@
+package in novo.modulo;
+
+componente Home {
+    fun render() {
+        System.print("Olá, UpperZetta!");
+    }
+}

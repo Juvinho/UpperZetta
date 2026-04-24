@@ -1,0 +1,11 @@
+import "./app.up"
+
+const version: String = "0.1.0"
+let bootMessage: String = "ZettaSource + Uzet"
+
+fun bootstrap():
+  print("Starting Uzet runtime")
+  print(version)
+  print(bootMessage)
+
+bootstrap()

@@ -1,0 +1,20 @@
+package in teste.avancado;
+
+fun calcMedia(n1.float, n2.float) >> float {
+    return (n1 + n2) / 2.0;
+}
+
+componente Home {
+    fun render() {
+        let notas.array = [8.5, 9.5];
+        let media.float = calcMedia(notas[0], notas[1]);
+
+        System.print("Sua media e: " + media);
+
+        if (media >= 7.0) {
+            System.print("Aprovado");
+        } else {
+            System.print("Reprovado");
+        }
+    }
+}

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="16" fill="#1A1A2E"/>
+  <text x="64" y="70" font-family="'Arial Narrow', 'Roboto Condensed', sans-serif" font-weight="700" font-style="italic" font-size="60" fill="#E53030" text-anchor="middle" transform="skewX(-8)" filter="drop-shadow(0 4px 8px #E5303044)">UZ</text>
+  <text x="64" y="105" font-family="'Arial Narrow', 'Roboto Condensed', sans-serif" font-size="14" fill="#888" text-anchor="middle" letter-spacing="3">UpperZetta</text>
+</svg>

@@ -1,0 +1,10 @@
+component HomeScreen:
+  const title: String = "Upperzetta UI"
+
+  fun render():
+    print(title)
+
+  fun mount():
+    while true:
+      print("render tick")
+      return

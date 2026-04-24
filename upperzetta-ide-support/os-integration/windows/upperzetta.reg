@@ -1,0 +1,5 @@
+Windows Registry Editor Version 5.00
+[HKEY_CLASSES_ROOT\.uz]
+@="UpperZettaFile"
+[HKEY_CLASSES_ROOT\UpperZettaFile\DefaultIcon]
+@="C:\\Path\\To\\uz-icon.ico"

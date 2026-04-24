@@ -1,0 +1,87 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "UpperZetta",
+  "patterns": [
+    {
+      "name": "keyword.control.upperzetta",
+      "match": "\\b(package|in|fun|return|class\\.public|componente)\\b"
+    },
+    {
+      "name": "keyword.declaration.upperzetta",
+      "match": "\\b(let|e\\.const)\\b"
+    },
+    {
+      "name": "keyword.control.flow.upperzetta",
+      "match": "\\b(if|else|while|for)\\b"
+    },
+    {
+      "name": "storage.type.upperzetta",
+      "match": "\\b(str|int|boolean|float|array|void)\\b"
+    },
+    {
+      "name": "constant.language.boolean.upperzetta",
+      "match": "\\b(true|false)\\b"
+    },
+    {
+      "name": "constant.language.null.upperzetta",
+      "match": "\\b(null)\\b"
+    },
+    {
+      "name": "string.quoted.double.upperzetta",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.upperzetta",
+          "match": "\\\\."
+        }
+      ]
+    },
+    {
+      "name": "constant.numeric.integer.upperzetta",
+      "match": "\\b\\d+(\\.\\d+)?\\b"
+    },
+    {
+      "name": "comment.line.double-slash.upperzetta",
+      "match": "//.*$"
+    },
+    {
+      "name": "comment.block.upperzetta",
+      "begin": "/\\*",
+      "end": "\\*/"
+    },
+    {
+      "name": "entity.name.function.upperzetta",
+      "match": "(?<=fun\\s+)[a-zA-Z_][a-zA-Z0-9_]*"
+    },
+    {
+      "name": "entity.name.class.upperzetta",
+      "match": "(?<=class\\.public\\s+)[a-zA-Z_][a-zA-Z0-9_]*"
+    },
+    {
+      "name": "entity.name.component.upperzetta",
+      "match": "(?<=componente\\s+)[a-zA-Z_][a-zA-Z0-9_]*"
+    },
+    {
+      "name": "support.function.builtin.upperzetta",
+      "match": "\\bSystem\\.print\\b"
+    },
+    {
+      "name": "entity.name.namespace.upperzetta",
+      "match": "(?<=package\\s+in\\s+)[a-zA-Z0-9_\\.]+"
+    },
+    {
+      "name": "keyword.operator.upperzetta",
+      "match": "==|!=|>=|<=|&&|\\|\\||>|<|\\+|-|\\*|/"
+    },
+    {
+      "name": "keyword.operator.return-type.upperzetta",
+      "match": ">>"
+    },
+    {
+      "name": "punctuation.type-separator.upperzetta",
+      "match": "\\."
+    }
+  ],
+  "scopeName": "source.upperzetta"
+}

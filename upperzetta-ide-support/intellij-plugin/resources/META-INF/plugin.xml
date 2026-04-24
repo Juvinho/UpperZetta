@@ -1,0 +1,6 @@
+<idea-plugin>
+  <id>com.zettasource.upperzetta</id>
+  <name>UpperZetta Language Support</name>
+  <vendor>ZettaSource</vendor>
+  <description>Provides syntax highlighting and language features for UpperZetta.</description>
+</idea-plugin>

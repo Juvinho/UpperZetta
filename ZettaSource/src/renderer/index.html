@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com;">
+  <title>ZettaSource</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-dark">
+
+  <!-- TITLEBAR -->
+  <div id="titlebar">
+    <div id="titlebar-left">
+      <span id="titlebar-logo">ZS</span>
+      <nav id="titlebar-menu">
+        <span class="menu-item" data-menu="arquivo">Arquivo</span>
+        <span class="menu-item" data-menu="editar">Editar</span>
+        <span class="menu-item" data-menu="ver">Ver</span>
+        <span class="menu-item" data-menu="uvlm">UVLM</span>
+        <span class="menu-item" data-menu="ferramentas">Ferramentas</span>
+        <span class="menu-item" data-menu="ajuda">Ajuda</span>
+      </nav>
+    </div>
+    <div id="titlebar-drag"></div>
+    <div id="titlebar-controls">
+      <button class="wc-btn" id="btn-minimize">&#x2500;</button>
+      <button class="wc-btn" id="btn-maximize">&#x25A1;</button>
+      <button class="wc-btn wc-close" id="btn-close">&#x2715;</button>
+    </div>
+  </div>
+
+  <!-- MAIN LAYOUT -->
+  <div id="layout">
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar">
+      <div id="sidebar-header">
+        <span>EXPLORADOR</span>
+        <button id="btn-open-folder" title="Abrir Pasta">⊕</button>
+      </div>
+      <div id="sidebar-no-folder">
+        <p>Nenhuma pasta aberta</p>
+        <button id="btn-open-folder-empty">Abrir Pasta</button>
+      </div>
+      <div id="file-tree"></div>
+    </aside>
+
+    <!-- SIDEBAR RESIZE HANDLE -->
+    <div id="sidebar-resize"></div>
+
+    <!-- EDITOR AREA -->
+    <div id="editor-area">
+
+      <!-- TAB BAR -->
+      <div id="tab-bar">
+        <div id="tab-list"></div>
+        <div id="tab-actions">
+          <button class="tab-action-btn" id="btn-split" title="Dividir Editor">&#x29C9;</button>
+        </div>
+      </div>
+
+      <!-- EDITOR + FIND BAR -->
+      <div id="editor-wrapper">
+        <div id="find-bar" class="hidden">
+          <input id="find-input" type="text" placeholder="Buscar...">
+          <span id="find-count"></span>
+          <button id="find-prev">&#x25B2;</button>
+          <button id="find-next">&#x25BC;</button>
+          <button id="find-close">&#x2715;</button>
+        </div>
+        <div id="editor-container"></div>
+
+        <!-- WELCOME SCREEN -->
+        <div id="welcome-screen">
+          <div id="welcome-content">
+            <div id="welcome-logo">ZS</div>
+            <h1>ZettaSource</h1>
+            <p class="welcome-sub">IDE for UpperZetta Language</p>
+            <div id="welcome-shortcuts">
+              <div class="ws-item"><kbd>Ctrl+P</kbd><span>Abrir Arquivo</span></div>
+              <div class="ws-item"><kbd>Ctrl+Shift+P</kbd><span>Paleta de Comandos</span></div>
+              <div class="ws-item"><kbd>Ctrl+Shift+B</kbd><span>Compilar UVLM</span></div>
+              <div class="ws-item"><kbd>F5</kbd><span>Executar</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM PANEL -->
+      <div id="bottom-panel">
+        <div id="panel-resize"></div>
+        <div id="panel-tabs">
+          <button class="panel-tab active" data-panel="terminal">Terminal</button>
+          <button class="panel-tab" data-panel="output">Output UVLM</button>
+          <button class="panel-tab" data-panel="problems">Problemas</button>
+          <button class="panel-tab" data-panel="glp">GLP Report</button>
+          <div id="panel-tab-spacer"></div>
+          <button id="btn-toggle-panel" title="Fechar Painel (Ctrl+J)">&#x2715;</button>
+        </div>
+        <div id="panel-content">
+          <div id="panel-terminal" class="panel-pane active">
+            <div id="terminal-output"></div>
+            <div id="terminal-input-row">
+              <span id="terminal-prompt">→ </span>
+              <input id="terminal-input" type="text" spellcheck="false" autocomplete="off">
+            </div>
+          </div>
+          <div id="panel-output" class="panel-pane">
+            <div id="output-content"></div>
+          </div>
+          <div id="panel-problems" class="panel-pane">
+            <div id="problems-list"></div>
+          </div>
+          <div id="panel-glp" class="panel-pane">
+            <div id="glp-content"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div id="status-bar">
+    <div id="status-left">
+      <span id="status-lang">⚡ UpperZetta 1.0</span>
+      <span class="status-sep">|</span>
+      <span id="status-package">—</span>
+    </div>
+    <div id="status-right">
+      <span id="status-cursor">Ln 1, Col 1</span>
+      <span class="status-sep">|</span>
+      <span id="status-encoding">UTF-8</span>
+      <span class="status-sep">|</span>
+      <span id="status-uvlm">UVLM Ready</span>
+    </div>
+  </div>
+
+  <!-- COMMAND PALETTE -->
+  <div id="command-palette-overlay" class="hidden">
+    <div id="command-palette">
+      <input id="cp-input" type="text" placeholder="Digite um comando...">
+      <div id="cp-results"></div>
+    </div>
+  </div>
+
+  <!-- UZS DIALOG -->
+  <div id="uzs-overlay" class="hidden">
+    <div id="uzs-dialog">
+      <div id="uzs-title">🔒 Arquivo Selado</div>
+      <div id="uzs-meta">
+        <div class="uzs-meta-row"><span class="uzs-label">Pacote:</span><span id="uzs-package">—</span></div>
+        <div class="uzs-meta-row"><span class="uzs-label">Selado em:</span><span id="uzs-date">—</span></div>
+      </div>
+      <div id="uzs-pass-row">
+        <input id="uzs-password" type="password" placeholder="Senha">
+        <button id="uzs-toggle-pass">👁</button>
+      </div>
+      <div id="uzs-progress" class="hidden"><div id="uzs-progress-bar"></div></div>
+      <div id="uzs-error" class="hidden"></div>
+      <div id="uzs-buttons">
+        <button id="uzs-cancel">Cancelar</button>
+        <button id="uzs-unlock">Desbloquear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GOTO LINE DIALOG -->
+  <div id="goto-overlay" class="hidden">
+    <div id="goto-dialog">
+      <input id="goto-input" type="number" placeholder="Ir para linha..." min="1">
+    </div>
+  </div>
+
+  <!-- ERROR BANNER -->
+  <div id="error-banner" class="hidden">
+    <span id="error-banner-text"></span>
+    <button id="error-banner-close">✕</button>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="https://cdn.jsdelivr.net/npm/@codemirror/state@6.4.1/dist/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@codemirror/view@6.26.0/dist/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@codemirror/language@6.10.1/dist/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@codemirror/commands@6.6.0/dist/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@codemirror/search@6.5.6/dist/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@codemirror/autocomplete@6.16.2/dist/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@lezer/highlight@1.2.0/dist/index.min.js"></script>
+  <script src="editor.js"></script>
+  <script src="sidebar.js"></script>
+  <script src="terminal.js"></script>
+  <script src="uvlm.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

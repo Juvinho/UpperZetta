@@ -1,0 +1,16 @@
+{
+  "name": "zettasource",
+  "version": "1.0.0",
+  "description": "ZettaSource — IDE for UpperZetta Language",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0"
+  },
+  "keywords": ["upperzetta", "ide", "uvlm"],
+  "author": "ZettaSource",
+  "license": "MIT"
+}

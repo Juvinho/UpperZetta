@@ -1,0 +1,12 @@
+class Session:
+  let connected: Bool = true
+
+  fun status():
+    if connected:
+      print("session online")
+    else:
+      print("session offline")
+
+fun mainLoop(items):
+  for item in items:
+    print(item)
