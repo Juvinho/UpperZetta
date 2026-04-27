@@ -47,13 +47,11 @@ export class ExportUZS {
         document.getElementById('export-submit').onclick = () => this._submit();
 
         document.getElementById('export-password').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') document.getElementById('export-confirm').focus();
-        });
-        document.getElementById('export-confirm').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') this._submit();
+            if (e.key === 'Enter')  document.getElementById('export-confirm').focus();
             if (e.key === 'Escape') this.close();
         });
-        document.getElementById('export-password').addEventListener('keydown', (e) => {
+        document.getElementById('export-confirm').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter')  this._submit();
             if (e.key === 'Escape') this.close();
         });
     }

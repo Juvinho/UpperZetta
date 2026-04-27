@@ -99,6 +99,7 @@ export class UZSOpener {
     open(filePath) {
         this._filePath = filePath;
         this._decryptedSource = null;
+        this._sourceEncoding = 'utf8';
         this._isBytecode = false;
         this._format = 'uz';
 
@@ -170,26 +171,27 @@ export class UZSOpener {
 
         if (result.success) {
             this._decryptedSource = result.source;
+            this._sourceEncoding = result.encoding || 'utf8';
             this._isBytecode = result.isBytecode;
+            
+            // Se for código-fonte, extraímos para .uz e abrimos como arquivo normal.
+            if (!this._isBytecode) {
+                await this._openAsUzFile();
+                return;
+            }
+
+            // Se for bytecode, ainda mostramos as opções (pois não dá para editar bytecode direto)
             document.getElementById('uzs-phase-password').classList.add('hidden');
             document.getElementById('uzs-phase-options').classList.remove('hidden');
 
-            if (result.isBytecode) {
-                const desc = document.querySelector('#uzs-phase-options .modal-desc');
-                desc.innerHTML = `
-                    <span style="color: var(--warning); font-weight: bold;">⚠ Atenção:</span> 
-                    Este arquivo contém bytecode (.uzb). A edição será limitada ao binário.
-                `;
-                document.getElementById('uzs-open-editor').innerHTML = '<span class="material-icons">visibility</span> Ver Binário no Editor';
-                document.getElementById('opt-save-uz').textContent = '.uz (Binário)';
-                document.getElementById('opt-save-uzb').textContent = '.uzb (Executável)';
-            } else {
-                const desc = document.querySelector('#uzs-phase-options .modal-desc');
-                desc.textContent = 'Este arquivo contém o código-fonte original e é totalmente editável.';
-                document.getElementById('uzs-open-editor').innerHTML = '<span class="material-icons">edit</span> Abrir Código para Editar';
-                document.getElementById('opt-save-uz').textContent = '.uz (Fonte)';
-                document.getElementById('opt-save-uzb').textContent = '.uzb (Compilado)';
-            }
+            const desc = document.querySelector('#uzs-phase-options .modal-desc');
+            desc.innerHTML = `
+                <span style="color: var(--warning); font-weight: bold;">⚠ Atenção:</span> 
+                Este arquivo contém bytecode (.uzb). A edição será limitada ao binário.
+            `;
+            document.getElementById('uzs-open-editor').innerHTML = '<span class="material-icons">visibility</span> Ver Binário no Editor';
+            document.getElementById('opt-save-uz').textContent = '.uz (Binário)';
+            document.getElementById('opt-save-uzb').textContent = '.uzb (Executável)';
         } else {
             document.getElementById('uzs-open-error').textContent = result.error || 'Senha incorreta.';
             document.getElementById('uzs-open-submit').disabled = false;
@@ -197,11 +199,45 @@ export class UZSOpener {
         }
     }
 
+    async _openAsUzFile() {
+        if (typeof this._decryptedSource !== 'string') return;
+
+        const targetPath = path.join(
+            path.dirname(this._filePath),
+            `${path.basename(this._filePath, '.uzs')}.uz`
+        );
+
+        try {
+            await ipcRenderer.invoke('fs:writeFile', {
+                filePath: targetPath,
+                content: this._decryptedSource,
+                encoding: this._sourceEncoding
+            });
+
+            await this.app.tabs.open(targetPath, this._decryptedSource);
+            this.overlay.classList.add('hidden');
+
+            if (this._resolve) {
+                this._resolve({ mode: 'uz-file', filePath: targetPath });
+                this._resolve = null;
+            }
+        } catch (e) {
+            document.getElementById('uzs-open-error').textContent = e.message || 'Falha ao extrair para .uz.';
+            document.getElementById('uzs-open-submit').disabled = false;
+        }
+    }
+
     _openInEditor() {
         if (!this._decryptedSource) return;
         
+        const pw = document.getElementById('uzs-open-password').value;
         const name = path.basename(this._filePath, '.uzs') + (this._isBytecode ? '.uzb' : '.uz');
-        this.app.tabs.openDecrypted(name, this._decryptedSource);
+        
+        // Passamos o caminho original do .uzs e a senha para que o salvamento seja reversível
+        this.app.tabs.openDecrypted(name, this._decryptedSource, {
+            originalUzsPath: this._filePath,
+            password: pw
+        });
         
         this.overlay.classList.add('hidden');
         if (this._resolve) {
@@ -233,21 +269,21 @@ export class UZSOpener {
 
         try {
             if (this._format === 'uz') {
-                // Salva como código fonte (ou binário se for bytecode)
                 await ipcRenderer.invoke('fs:writeFile', {
                     filePath: targetPath,
-                    content: this._decryptedSource
+                    content: this._decryptedSource,
+                    encoding: this._sourceEncoding
                 });
             } else if (this._isBytecode) {
-                // Se já é bytecode, apenas salva com extensão .uzb sem compilar novamente
                 await ipcRenderer.invoke('fs:writeFile', {
                     filePath: targetPath,
-                    content: this._decryptedSource
+                    content: this._decryptedSource,
+                    encoding: this._sourceEncoding
                 });
             } else {
                 // Salva como compilado (.uzb) a partir de fonte
                 const tempUz = path.join(destDir, `__temp_${Date.now()}.uz`);
-                const tempUzb = tempUz.replace('.uz', '.uzb');
+                const tempUzb = tempUz.replace(/\.uz$/, '.uzb');
                 
                 await ipcRenderer.invoke('fs:writeFile', {
                     filePath: tempUz,

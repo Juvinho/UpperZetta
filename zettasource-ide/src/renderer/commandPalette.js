@@ -41,8 +41,20 @@ export class CommandPalette {
 
         this.input.oninput = () => this.filter();
         this.input.onkeydown = (e) => {
-            if (e.key === 'Escape') this.hide();
-            if (e.key === 'Enter') this.executeActive();
+            if (e.key === 'Escape') { e.preventDefault(); this.hide(); return; }
+            if (e.key === 'Enter')  { e.preventDefault(); this.executeActive(); return; }
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                const items = [...this.results.querySelectorAll('.palette-item')];
+                if (!items.length) return;
+                const idx = items.findIndex(i => i.classList.contains('active'));
+                items[idx]?.classList.remove('active');
+                const next = e.key === 'ArrowDown'
+                    ? items[(idx + 1) % items.length]
+                    : items[(idx - 1 + items.length) % items.length];
+                next.classList.add('active');
+                next.scrollIntoView({ block: 'nearest' });
+            }
         };
 
         overlay.onclick = (e) => { if (e.target === overlay) this.hide(); };

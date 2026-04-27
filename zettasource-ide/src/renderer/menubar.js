@@ -1,3 +1,5 @@
+const { ipcRenderer, shell } = window.require('electron');
+
 export class Menubar {
     constructor(app) {
         this.app = app;
@@ -6,7 +8,7 @@ export class Menubar {
         this.menus = {
             'Arquivo': [
                 { label: 'Novo Arquivo', shortcut: 'Ctrl+N', action: () => this.app.tabs.createNew() },
-                { label: 'Nova Janela', shortcut: 'Ctrl+Shift+N', action: () => {} },
+                { label: 'Nova Janela', shortcut: 'Ctrl+Shift+N', action: () => ipcRenderer.send('window:new') },
                 { type: 'divider' },
                 { label: 'Abrir Arquivo...', shortcut: 'Ctrl+O', action: () => this.app.openFile() },
                 { label: 'Abrir Pasta...', shortcut: 'Ctrl+K Ctrl+O', action: () => this.app.openFolder() },
@@ -49,9 +51,10 @@ export class Menubar {
                 { label: 'Configurações', shortcut: 'Ctrl+,', action: () => this.app.showSettings() }
             ],
             'Ajuda': [
-                { label: 'Documentação', action: () => {} },
-                { label: 'Atalhos de Teclado', action: () => {} },
-                { label: 'Sobre ZettaSource', action: () => {} }
+                { label: 'Documentação UpperZetta', action: () => shell.openExternal('https://github.com') },
+                { label: 'Atalhos de Teclado', action: () => this.app.commandPalette.show() },
+                { type: 'divider' },
+                { label: 'Sobre ZettaSource', action: () => alert('ZettaSource IDE v2.0.0\nUpperZetta UVLM\n\nDesenvolvido com Electron + CodeMirror 6') }
             ]
         };
 

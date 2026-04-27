@@ -38,6 +38,15 @@ function createWindow() {
     });
 
     // --- WINDOW CONTROLS ---
+    ipcMain.on('window:new', () => {
+        const win = new BrowserWindow({
+            width: 1280, height: 800, minWidth: 800, minHeight: 500,
+            frame: false, titleBarStyle: 'hidden', backgroundColor: '#0F0F0F',
+            webPreferences: { nodeIntegration: true, contextIsolation: false },
+            icon: path.join(__dirname, '../../build-resources/icon.ico')
+        });
+        win.loadFile(path.join(__dirname, '../renderer/index.html'));
+    });
     ipcMain.on('window:minimize', () => mainWindow.minimize());
     ipcMain.on('window:maximize', () => {
         if (mainWindow.isMaximized()) mainWindow.unmaximize();
@@ -139,7 +148,11 @@ function createWindow() {
         return fs.readFileSync(filePath, encoding === 'buffer' ? null : encoding);
     });
     ipcMain.handle('fs:writeFile', async (_, { filePath, content, encoding = 'utf8' }) => {
-        fs.writeFileSync(filePath, content, encoding === 'buffer' ? Buffer.from(content) : encoding);
+        if (encoding === 'base64') {
+            fs.writeFileSync(filePath, Buffer.from(content, 'base64'));
+        } else {
+            fs.writeFileSync(filePath, content, encoding);
+        }
         return true;
     });
     ipcMain.handle('fs:copyFile', async (_, { src, dest }) => {
@@ -208,37 +221,47 @@ function createWindow() {
     ipcMain.handle('uvlm:buildAndRun', async (_, { filePath }) => uvlm.buildAndRun(filePath));
     ipcMain.on('uvlm:stop', () => { if (uvlm) uvlm.stop(); });
 
+    // ── DeviceKey IPC ────────────────────────────────────────────────────────
+    ipcMain.handle('uvlm:keyExport', async (_, { outputPath }) =>
+        uvlm ? uvlm.keyExport(outputPath) : { success: false, error: 'UVLM não pronto.' }
+    );
+    ipcMain.handle('uvlm:keyImport', async (_, { keyFilePath }) =>
+        uvlm ? uvlm.keyImport(keyFilePath) : { success: false, error: 'UVLM não pronto.' }
+    );
+    ipcMain.handle('uvlm:keyShow', async () =>
+        uvlm ? uvlm.keyShow() : { success: false, key: null }
+    );
+    ipcMain.handle('uvlm:sealFile', async (_, { filePath, password, content }) =>
+        uvlm ? uvlm.sealFile(filePath, password, content ?? null)
+             : { success: false, error: 'UVLM não pronto.' }
+    );
+
     // --- UZS UNSEAL ---
     ipcMain.handle('uvlm:unsealUZS', async (_, { filePath, password }) => {
         try {
             const uzsBuffer = fs.readFileSync(filePath);
             if (uzsBuffer.length < 4) return { success: false, error: 'Arquivo UZS inválido.' };
 
-            // Suporte a múltiplos formatos (UZS! novo/seguro, UZS1 legado/export)
-            const magic = uzsBuffer.slice(0, 4).toString('utf8');
-            const isLegacy = (magic === 'UZS1');
+            // UZS1 (DeviceKey format) → delegate to Java
+            const magic = uzsBuffer.slice(0, 4).toString('ascii');
+            if (magic === 'UZS1') {
+                if (!uvlm) return { success: false, error: 'UVLM não inicializado.' };
+                return await uvlm.unsealFile(filePath, password);
+            }
 
-            if (magic !== 'UZS!' && magic !== 'UZS1') {
+            // UZS! (AES-256-GCM, no DeviceKey) → Node.js path
+            if (magic !== 'UZS!') {
                 return { success: false, error: 'Não é um arquivo .uzs válido.' };
             }
 
-            let salt, iv, payloadStart, iterations, algo;
+            let salt, iv, payloadStart;
+            let metadata = null;
 
-            if (isLegacy) {
-                // Formato UZS1 (Legado/Export): magic(4) + salt(16) + iv(16) + ciphertext
-                if (uzsBuffer.length < 36) return { success: false, error: 'Arquivo UZS legado corrompido.' };
-                salt = uzsBuffer.slice(4, 20);
-                iv = uzsBuffer.slice(20, 36);
-                payloadStart = 36;
-                iterations = 100000;
-                algo = 'aes-256-cbc';
-            } else {
-                // Formato UZS! (Novo): magic(4) + mirror(4) + version(2) + salt(16) + iv(12) + reserved(6) + metadata(N) + ciphertext
-                if (uzsBuffer.length < 44) return { success: false, error: 'Arquivo UZS novo corrompido.' };
+            {
+                // Formato UZS!: magic(4) + mirror(4) + version(2) + salt(16) + iv(12) + reserved(6) + metadata(N) + ciphertext
+                if (uzsBuffer.length < 44) return { success: false, error: 'Arquivo UZS corrompido.' };
                 salt = uzsBuffer.slice(10, 26);
                 iv = uzsBuffer.slice(26, 38);
-                iterations = 600000;
-                algo = 'aes-256-gcm';
 
                 // Extrair metadados (string null-terminated)
                 payloadStart = 44;
@@ -254,47 +277,42 @@ function createWindow() {
                     console.warn('[UZS] Falha ao ler metadados:', e.message);
                 }
                 
-                payloadStart = metaEnd + 1; // Pular o nulo
+                payloadStart = metaEnd < uzsBuffer.length ? metaEnd + 1 : metaEnd; // Pular o nulo quando existir
             }
 
-            // Derivação de chave PBKDF2-SHA512
+            // Derivação de chave PBKDF2-SHA512 (600k iters, formato UZS!)
             const key = await new Promise((res, rej) =>
-                crypto.pbkdf2(password, salt, iterations, 32, 'sha512', (e, k) => e ? rej(e) : res(k))
+                crypto.pbkdf2(password, salt, 600000, 32, 'sha512', (e, k) => e ? rej(e) : res(k))
             );
 
             let decrypted;
             try {
-                if (algo === 'aes-256-gcm') {
-                    const payload = uzsBuffer.slice(payloadStart);
-                    const authTag = payload.slice(payload.length - 16);
-                    const ciphertext = payload.slice(0, payload.length - 16);
-
-                    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
-                    decipher.setAuthTag(authTag);
-                    decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-                } else {
-                    const ciphertext = uzsBuffer.slice(payloadStart);
-                    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-                    decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-                }
+                const payload    = uzsBuffer.slice(payloadStart);
+                const authTag    = payload.slice(payload.length - 16);
+                const ciphertext = payload.slice(0, payload.length - 16);
+                const decipher   = crypto.createDecipheriv('aes-256-gcm', key, iv);
+                decipher.setAuthTag(authTag);
+                decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
             } catch (_) {
                 return { success: false, error: 'Senha incorreta.' };
             }
 
-            // O formato novo (UZS!) tem 64 bytes de padding aleatório no início.
-            // O formato legado (UZS1) não possui esse padding.
-            let sourceBuffer;
-            if (isLegacy) {
-                sourceBuffer = decrypted;
-            } else {
-                if (decrypted.length < 64) return { success: false, error: 'Conteúdo do arquivo corrompido.' };
-                sourceBuffer = decrypted.slice(64);
+            // UZS! payload has 64 bytes of random padding before the source
+            if (decrypted.length < 64) return { success: false, error: 'Conteúdo do arquivo corrompido.' };
+            const sourceBuffer = decrypted.slice(64);
+
+            const isBytecode = metadata?.type === 'bytecode' ||
+                               (sourceBuffer.length >= 8 && sourceBuffer.slice(0, 8).toString('ascii') === 'UZB!!BZU');
+
+            // Binary bytecode cannot be safely round-tripped as a UTF-8 string over IPC
+            // (lone surrogate chars from invalid UTF-8 sequences cause structured-clone to hang).
+            // Transmit bytecode as base64; plain source as UTF-8.
+            if (isBytecode) {
+                return { success: true, source: sourceBuffer.toString('base64'), isBytecode, metadata, encoding: 'base64' };
             }
 
             const source = sourceBuffer.toString('utf8');
-            const isBytecode = metadata?.type === 'bytecode' || source.startsWith('UZB!!BZU');
-
-            return { success: true, source, isBytecode, metadata };
+            return { success: true, source, isBytecode: false, metadata, encoding: 'utf8' };
         } catch (e) {
             return { success: false, error: e.message };
         }
@@ -321,19 +339,21 @@ function createWindow() {
         return count;
     });
 
-    ipcMain.handle('uvlm:exportUZS', async (_, { filePath, password }) => {
+    ipcMain.handle('uvlm:exportUZS', async (_, { filePath, password, customContent }) => {
         try {
             let targetFilePath = filePath;
-            
-            // Se o usuário tentar selar um .uzb, tentamos encontrar o .uz original para manter o código editável
-            if (filePath.endsWith('.uzb')) {
-                const sourcePath = filePath.replace('.uzb', '.uz');
-                if (fs.existsSync(sourcePath)) {
-                    targetFilePath = sourcePath;
-                }
-            }
+            let sourceCode = customContent;
 
-            const sourceCode = fs.readFileSync(targetFilePath, 'utf8');
+            if (!sourceCode) {
+                // Se o usuário tentar selar um .uzb, tentamos encontrar o .uz original para manter o código editável
+                if (filePath.endsWith('.uzb')) {
+                    const sourcePath = filePath.replace('.uzb', '.uz');
+                    if (fs.existsSync(sourcePath)) {
+                        targetFilePath = sourcePath;
+                    }
+                }
+                sourceCode = fs.readFileSync(targetFilePath, 'utf8');
+            }
             const isBytecode = sourceCode.startsWith('UZB!!BZU');
             
             // PBKDF2-SHA512, 600 000 iters, 32-byte key

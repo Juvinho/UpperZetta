@@ -295,6 +295,117 @@ class UVLMRunner {
             proc.on('error', () => resolve('UpperZetta UVLM 1.0'));
         });
     }
+
+    // ── Crypto helpers (DeviceKey-based) ─────────────────────────────────────
+
+    /** Spawn Java command without stdin interaction. */
+    _runSimple(...args) {
+        return new Promise(resolve => {
+            const proc = spawn('java', ['-cp', this.jar, 'Main', ...args], { stdio: 'pipe' });
+            let stdout = '', stderr = '';
+            proc.stdout.on('data', d => stdout += d.toString());
+            proc.stderr.on('data', d => stderr += d.toString());
+            proc.on('close', code => resolve({ stdout: stdout.trim(), stderr: stderr.trim(), code }));
+            proc.on('error', err => resolve({ stdout: '', stderr: err.message, code: -1 }));
+        });
+    }
+
+    /** Spawn Java command, write password to stdin, wait for exit. */
+    _runWithPassword(command, filePath, password) {
+        return new Promise((resolve, reject) => {
+            const proc = spawn(
+                'java',
+                ['-cp', this.jar, 'Main', command, filePath],
+                { cwd: path.dirname(filePath), stdio: 'pipe' }
+            );
+            let stdout = '', stderr = '';
+            proc.stdout.on('data', d => stdout += d.toString());
+            proc.stderr.on('data', d => stderr += d.toString());
+            proc.stdin.write(password + '\n');
+            proc.stdin.end();
+            proc.on('close', code => resolve({ stdout: stdout.trim(), stderr: stderr.trim(), code }));
+            proc.on('error', reject);
+        });
+    }
+
+    /**
+     * Unseal a UZS1 (DeviceKey) file via Java.
+     * Java writes <file>.uz to disk; we read it back and return { success, source, uzPath }.
+     */
+    async unsealFile(uzsPath, password) {
+        if (!this.jar) return { success: false, error: 'UVLM não inicializado.' };
+        const result = await this._runWithPassword('unseal', uzsPath, password);
+        if (result.code !== 0) {
+            const msg = result.stderr || result.stdout;
+            if (result.code === 2 || /[Ss]enha|DEVICE KEY/i.test(msg)) {
+                return { success: false, error: 'Senha incorreta ou DEVICE KEY diferente.' };
+            }
+            return { success: false, error: msg || `Java saiu com código ${result.code}` };
+        }
+        const uzPath = uzsPath.replace(/\.uzs$/, '.uz');
+        try {
+            const source = fs.readFileSync(uzPath, 'utf8');
+            return { success: true, source, isBytecode: false, encoding: 'utf8', uzPath };
+        } catch (e) {
+            return { success: false, error: 'Arquivo .uz não foi criado: ' + e.message };
+        }
+    }
+
+    /**
+     * Seal a .uz file via Java (creates .uzs with DeviceKey).
+     * If content is provided, writes it to a temp file first.
+     */
+    async sealFile(uzPath, password, content = null) {
+        if (!this.jar) return { success: false, error: 'UVLM não inicializado.' };
+
+        let tempPath = null;
+        let targetUzPath = uzPath;
+
+        if (content !== null) {
+            // Write custom content to temp file so Java can read it
+            tempPath = uzPath + '.__tmp__.uz';
+            fs.writeFileSync(tempPath, content, 'utf8');
+            targetUzPath = tempPath;
+        }
+
+        try {
+            const result = await this._runWithPassword('seal', targetUzPath, password);
+            if (result.code !== 0) {
+                return { success: false, error: result.stderr || `exit ${result.code}` };
+            }
+            // Java creates file at targetUzPath.replace('.uz', '.uzs')
+            const rawUzsPath = targetUzPath.replace(/\.uz$/, '.uzs');
+            const finalUzsPath = uzPath.replace(/\.uz$/, '.uzs');
+            if (tempPath && rawUzsPath !== finalUzsPath) {
+                fs.renameSync(rawUzsPath, finalUzsPath);
+            }
+            return { success: true, uzsPath: finalUzsPath };
+        } finally {
+            if (tempPath && fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+        }
+    }
+
+    /** Export DeviceKey to a file. */
+    async keyExport(outputPath) {
+        if (!this.jar) return { success: false, error: 'UVLM não inicializado.' };
+        const r = await this._runSimple('key-export', outputPath);
+        return { success: r.code === 0, output: r.stdout, error: r.stderr };
+    }
+
+    /** Import DeviceKey from a file. */
+    async keyImport(keyFilePath) {
+        if (!this.jar) return { success: false, error: 'UVLM não inicializado.' };
+        const r = await this._runSimple('key-import', keyFilePath);
+        return { success: r.code === 0, output: r.stdout, error: r.stderr };
+    }
+
+    /** Show current DeviceKey. */
+    async keyShow() {
+        if (!this.jar) return { success: false, key: null };
+        const r = await this._runSimple('key-show');
+        const match = r.stdout.match(/\[DEVICE KEY\]\s*(.+)/);
+        return { success: r.code === 0, key: match ? match[1].trim() : r.stdout };
+    }
 }
 
 module.exports = { UVLMRunner, findUVLMJar, detectJava };

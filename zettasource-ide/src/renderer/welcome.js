@@ -85,15 +85,17 @@ export class WelcomeScreen {
     }
 
     async createProject(name, template) {
-        if (!name) return alert('Digite um nome para o projeto.');
-        
-        const result = await ipcRenderer.invoke('show-open-dialog', {
-            properties: ['openDirectory'],
-            title: 'Selecione onde criar o projeto'
-        });
+        if (!name) {
+            document.getElementById('proj-name').classList.add('input-error');
+            setTimeout(() => document.getElementById('proj-name')?.classList.remove('input-error'), 1500);
+            document.getElementById('proj-name').placeholder = 'Nome obrigatório';
+            return;
+        }
 
-        if (!result.canceled) {
-            const root = path.join(result.filePaths[0], name);
+        const folder = await ipcRenderer.invoke('dialog:openFolder');
+
+        if (folder) {
+            const root = path.join(folder, name);
             await ipcRenderer.invoke('fs:mkdir', root);
             
             // Create zettasource.json
@@ -118,4 +120,5 @@ export class WelcomeScreen {
             this.hide();
         }
     }
+
 }

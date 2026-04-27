@@ -295,6 +295,9 @@ body.is-resizing-sidebar #sidebar-resizer::after {
     background: var(--selection);
 }
 
+.child-container.collapsed { display: none; }
+.tree-item.is-dir { user-select: none; }
+
 .tree-icon {
     margin-right: 8px;
     font-size: 16px;

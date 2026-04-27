@@ -164,9 +164,7 @@ class App {
 
         try {
             if (extension === '.uzs') {
-                const decryptedSource = await this.uzsOpener.open(filePath);
-                const decryptedName = `${path.basename(filePath, '.uzs')}.uz`;
-                this.tabs.openDecrypted(decryptedName, decryptedSource);
+                await this.uzsOpener.open(filePath);
             } else {
                 const content = await ipcRenderer.invoke('fs:readFile', filePath);
                 this.tabs.open(filePath, content);
@@ -184,13 +182,32 @@ class App {
         const activeTab = this.tabs.getActiveTab();
         if (!activeTab) return;
 
+        const content = this.editor.getContent();
+
+        // Fluxo Reversível: Se a aba veio de um .uzs, salvamos de volta no .uzs
+        if (activeTab.sealed) {
+            this.setStatus('Protegendo e salvando...', 'building');
+            const result = await ipcRenderer.invoke('uvlm:exportUZS', {
+                filePath: activeTab.sealed.path,
+                password: activeTab.sealed.password,
+                customContent: content // Precisamos garantir que o backend aceite conteúdo customizado
+            });
+
+            if (result.success) {
+                this.tabs.markClean(activeTab.id);
+                this.setStatus('Arquivo selado atualizado', 'success');
+            } else {
+                this.logError('Erro ao re-selar arquivo: ' + result.error);
+            }
+            return;
+        }
+
         let filePath = activeTab.filePath;
         if (!filePath) {
             filePath = await ipcRenderer.invoke('dialog:saveFile');
             if (!filePath) return;
         }
 
-        const content = this.editor.getContent();
         await ipcRenderer.invoke('fs:writeFile', { filePath, content });
         
         activeTab.filePath = filePath;
@@ -250,8 +267,16 @@ class App {
 
     async saveAll() {
         for (const tab of this.tabs.tabs) {
-            if (tab.dirty && tab.filePath) {
-                const content = tab.state.doc.toString();
+            if (!tab.dirty) continue;
+            const content = tab.state.doc.toString();
+            if (tab.sealed) {
+                await ipcRenderer.invoke('uvlm:exportUZS', {
+                    filePath: tab.sealed.path,
+                    password: tab.sealed.password,
+                    customContent: content
+                });
+                this.tabs.markClean(tab.id);
+            } else if (tab.filePath) {
                 await ipcRenderer.invoke('fs:writeFile', { filePath: tab.filePath, content });
                 this.tabs.markClean(tab.id);
             }

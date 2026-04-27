@@ -77,29 +77,44 @@ export class Sidebar {
         const list = document.createElement('div');
         list.className = 'file-list';
         
-        const renderLevel = (items, parent) => {
+        const renderLevel = (items, parent, depth = 0) => {
             items.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'tree-item' + (item.isDir ? ' is-dir' : '');
-                div.innerHTML = `
-                    <span class="material-icons">${item.isDir ? 'folder' : 'description'}</span>
-                    <span>${item.name}</span>
-                `;
+                div.style.paddingLeft = `${depth * 12}px`;
+
+                const icon = document.createElement('span');
+                icon.className = 'material-icons';
+                icon.textContent = item.isDir ? 'folder' : this._fileIcon(item.name);
+
+                const label = document.createElement('span');
+                label.textContent = item.name;
+
+                div.appendChild(icon);
+                div.appendChild(label);
+
+                let childContainer = null;
+                if (item.isDir && item.children && item.children.length > 0) {
+                    childContainer = document.createElement('div');
+                    childContainer.className = 'child-container collapsed';
+                    renderLevel(item.children, childContainer, depth + 1);
+                }
+
                 div.onclick = (e) => {
                     e.stopPropagation();
                     if (item.isDir) {
-                        // Toggle folder logic
+                        if (!childContainer) return;
+                        const isOpen = !childContainer.classList.contains('collapsed');
+                        childContainer.classList.toggle('collapsed', isOpen);
+                        icon.textContent = isOpen ? 'folder' : 'folder_open';
+                        div.classList.toggle('open', !isOpen);
                     } else {
                         this.app.openFile(item.path);
                     }
                 };
+
                 parent.appendChild(div);
-                if (item.isDir && item.children) {
-                    const childContainer = document.createElement('div');
-                    childContainer.className = 'child-container';
-                    renderLevel(item.children, childContainer);
-                    parent.appendChild(childContainer);
-                }
+                if (childContainer) parent.appendChild(childContainer);
             });
         };
         renderLevel(tree, list);
@@ -195,6 +210,15 @@ export class Sidebar {
         vimCheck.onchange = () => {
             this.app.editor.toggleVim(vimCheck.checked);
         };
+    }
+
+    _fileIcon(name) {
+        if (name.endsWith('.uz'))  return 'code';
+        if (name.endsWith('.uzb')) return 'memory';
+        if (name.endsWith('.uzs')) return 'lock';
+        if (name.endsWith('.json')) return 'data_object';
+        if (name.endsWith('.md'))  return 'article';
+        return 'description';
     }
 
     loadFolder(path) {

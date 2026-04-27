@@ -99,6 +99,9 @@ export class Settings {
         if (key === 'editor.vim') {
             this.app.editor.toggleVim(value);
         }
-        // Add more live updates here
+        if (key === 'editor.fontSize') {
+            const size = Math.max(8, Math.min(32, Number(value) || 13));
+            document.getElementById('editor-container').style.fontSize = `${size}px`;
+        }
     }
 }

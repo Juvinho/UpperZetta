@@ -50,8 +50,8 @@ export class Tabs {
     }
 
     // Open decrypted content from a sealed file.
-    // displayName shown in tab, filePath = null → save triggers Save As dialog.
-    openDecrypted(displayName, content) {
+    // displayName shown in tab, filePath = null → save triggers Save As dialog unless 'sealed' info is present.
+    openDecrypted(displayName, content, options = {}) {
         const id = `tab-${Date.now()}`;
         const tab = {
             id,
@@ -59,7 +59,11 @@ export class Tabs {
             filePath: null,
             state: this.app.editor.createState(content),
             dirty: false,
-            width: this.defaultTabWidth
+            width: this.defaultTabWidth,
+            sealed: options.originalUzsPath ? {
+                path: options.originalUzsPath,
+                password: options.password
+            } : null
         };
         this.tabs.push(tab);
         this.renderTabUI(tab);
@@ -154,7 +158,7 @@ export class Tabs {
         const tab = this.tabs.find(t => t.id === id);
         if (tab && !tab.dirty) {
             tab.dirty = true;
-            document.querySelector(`[data-tab-id="${id}"]`).classList.add('dirty');
+            document.querySelector(`[data-tab-id="${id}"]`)?.classList.add('dirty');
         }
     }
 
@@ -162,7 +166,7 @@ export class Tabs {
         const tab = this.tabs.find(t => t.id === id);
         if (tab) {
             tab.dirty = false;
-            document.querySelector(`[data-tab-id="${id}"]`).classList.remove('dirty');
+            document.querySelector(`[data-tab-id="${id}"]`)?.classList.remove('dirty');
         }
     }
 

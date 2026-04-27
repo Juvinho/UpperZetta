@@ -52,6 +52,10 @@ venv/
 # ── electron-store (persisted user settings, not source) ────────
 zettasource-ide/app-config*
 
+# ── Binários de distribuição (use GitHub Releases) ──────────────
+zettasource-ide/*.exe
+zettasource-ide/release_new/
+
 # ── Sensitive / local-only ──────────────────────────────────────
 .env
 .env.local
