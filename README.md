@@ -5,9 +5,9 @@
 ### Uma linguagem de programação hostil à engenharia reversa.
 
 [![License](https://img.shields.io/badge/license-MIT-red?style=flat-square)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-black?style=flat-square)](https://github.com)
+[![Version](https://img.shields.io/badge/version-1.0.0-black?style=flat-square)](https://github.com/Juvinho/UpperZetta/releases/tag/v1.0.0)
 [![UVLM](https://img.shields.io/badge/runtime-UVLM-red?style=flat-square)](#uvlm)
-[![GLP](https://img.shields.io/badge/GLP-member-black?style=flat-square)](#glp)
+[![GLP](https://img.shields.io/badge/bytecode-GLP-black?style=flat-square)](#glp--bytecode)
 
 *Também chamada de **Uzet**. Arquivo: `.uz` · Bytecode: `.uzb` · Selado: `.uzs`*
 
@@ -27,11 +27,22 @@ A sintaxe mistura três referências deliberadas:
 
 O resultado é uma linguagem de leitura simples, mas que compila para um bytecode intencionalmente hostil à decompilação.
 
-## GLP — Grupo de Linguagens Palíndromas
+## GLP — Bytecode
 
-UpperZetta faz parte do **GLP**, um ecossistema de linguagens onde o código compilado se torna progressivamente **mais difícil de decompor e rastrear** até a fonte original. Cada camada de build adiciona ofuscação, tornando engenharia reversa extremamente trabalhosa por design.
+UpperZetta compila para o formato **GLP (Generative Logic Palindrome)** — um bytecode proprietário onde o arquivo `.uzb` armazena o código e seu espelho em ordem reversa na mesma estrutura. A integridade é verificada sem checksum externo: qualquer corrupção é detectada na leitura.
 
-O objetivo não é impedir — é tornar o custo do ataque maior que o valor do alvo.
+O objetivo não é impedir reversão — é tornar o custo do ataque maior que o valor do alvo.
+
+## Download
+
+**[→ ZettaSource IDE v1.0.0 (Releases)](https://github.com/Juvinho/UpperZetta/releases/tag/v1.0.0)**
+
+| Arquivo | Descrição |
+|---|---|
+| `ZettaSource-Installer-Windows-x64.exe` | Instalador NSIS — recomendado |
+| `ZettaSource-Portable-Windows-x64.exe` | Portátil, sem instalação |
+
+**Requisitos:** Java 11+ no PATH · Windows 10/11 x64
 
 ## Sintaxe
 
@@ -41,15 +52,10 @@ package in exemplo.app;
 e.const appName.str = "UpperZetta";
 
 fun classifyAge(age.int) >> str {
-    if (age < 12) {
-        return "child";
-    } else if (age < 18) {
-        return "teen";
-    } else if (age < 60) {
-        return "adult";
-    } else {
-        return "elder";
-    }
+    if (age < 12) { return "child"; }
+    else if (age < 18) { return "teen"; }
+    else if (age < 60) { return "adult"; }
+    else { return "elder"; }
 }
 
 class.public User {
@@ -67,10 +73,18 @@ class.public User {
 }
 
 componente Home {
+    let title.str = "Demo";
+
     fun render() {
-        let user.int = 21;
+        let age.int = 21;
         System.print(appName);
-        System.print(classifyAge(user));
+        System.print(classifyAge(age));
+
+        let u.User = new User();
+        u.name = "Felipe";
+        u.age = age;
+        u.active = true;
+        System.print(u.name + ": " + u.canEnter());
     }
 }
 ```
@@ -81,89 +95,144 @@ componente Home {
 |---|---|
 | Pacote | `package in ui.app;` |
 | Constante global | `e.const nome.str = "valor";` |
-| Variável local | `let nome.tipo = valor;` |
+| Variável | `let nome.tipo = valor;` |
 | Função | `fun nome(param.tipo) >> retorno { ... }` |
 | Classe pública | `class.public Nome { ... }` |
-| Componente UI | `componente Home { fun render() { ... } }` |
-| Saída padrão | `System.print("texto");` |
+| Componente / entry point | `componente Home { fun render() { ... } }` |
+| Instanciação | `let x.Classe = new Classe();` |
+| Saída | `System.print(valor);` |
 
 ### Tipos
 
-`str` · `int` · `float` · `boolean` · `void` · `array`
+| Tipo | Exemplo |
+|---|---|
+| `int` | `let x.int = 42;` |
+| `float` | `let pi.float = 3.14;` |
+| `str` | `let s.str = "texto";` |
+| `boolean` | `let ok.boolean = true;` |
+| `array` | `let v.array = [1, 2, 3];` |
 
-### Prefixos de escopo
+### Operadores
 
-- `e.` — variável/constante **global exportada**
-- `i.` — variável/constante **interna ao módulo**
-- `let` — variável **local**
+`+` `-` `*` `/` · `==` `!=` `<` `>` `<=` `>=` · `&&` `||`
+
+> **Sem** `+=`, `-=`, `++`, `--`, `%`, `!`, `break`, `continue`, `switch`
+>
+> `&&` e `||` **não** usam curto-circuito — ambos os lados sempre avaliados.
+> Use `if` aninhado para verificar nulidade antes de acessar campos.
 
 ## Extensões de arquivo
 
 | Extensão | Descrição |
 |---|---|
-| `.uz` | Arquivo fonte UpperZetta, editável. |
-| `.uzb` | Bytecode compilado pelo UVLM. Intencionalmente hostil à decompilação. |
-| `.uzs` | Arquivo **selado** — fonte criptografado com AES-256-GCM + PBKDF2 (600.000 iterações). Totalmente reversível. |
+| `.uz` | Código-fonte UpperZetta (texto UTF-8) |
+| `.uzb` | Bytecode GLP compilado (binário, hostil à decompilação) |
+| `.uzs` | Arquivo **selado** — criptografado com AES-256 + PBKDF2 |
 
 ## UVLM
 
-**UpperZetta Virtual Legacy Machine** — a máquina virtual da linguagem, análoga à JVM, mas desenhada do zero com proteção em mente.
-
-O pipeline é direto:
+**UpperZetta Virtual Language Machine** — máquina virtual de pilha que executa bytecode `.uzb`, análoga à JVM mas desenhada do zero com proteção em mente.
 
 ```
-arquivo.uz   →   UVLM build   →   arquivo.uzb   →   UVLM run   →   execução
+arquivo.uz  →  compilador  →  arquivo.uzb  →  UVLM  →  execução
 ```
 
-### Comandos principais
+### CLI
 
 ```bash
-./oa-uvlm build arquivo.uz      # compila .uz para .uzb
-./oa-uvlm run arquivo.uzb       # executa o bytecode
-./oa-uvlm seal arquivo.uz       # gera .uzs criptografado
-./oa-uvlm help                  # lista todos os comandos
+# Usando alias 'uz' (ver documentação para configurar)
+uz programa.uz              # compilar e executar
+uz programa.uzb             # executar bytecode
+uz build programa.uz        # compilar apenas → gera .uzb
+uz programa.uzb --disasm    # disassembly do bytecode
+uz seal arquivo.uz          # criptografar → .uzs
+uz unseal arquivo.uzs       # restaurar com senha
+uz key-show                 # ver DEVICE KEY desta máquina
+uz key-export backup.key    # backup da DEVICE KEY
+uz key-import backup.key    # restaurar DEVICE KEY
+uz --version                # versão
 ```
+
+**Sem alias:** substitua `uz` por `java -cp Main.jar Main`.
 
 ## ZettaSource
 
-A IDE oficial da UpperZetta, construída em Electron com visual minimalista inspirado no Vim.
+IDE oficial construída com Electron + CodeMirror 6.
 
 ### Recursos
 
 - Syntax highlighting nativo para `.uz`
-- Terminal integrado com suporte a comandos `oa-uvlm`
-- Painel de output dedicado do UVLM
-- Painel de problemas com análise estática
-- Relatório GLP — inspeção das camadas de ofuscação aplicadas
-- Suporte a edição e geração de arquivos selados `.uzs`
+- Compilação one-click e painel de output UVLM
+- Suporte completo a `.uz`, `.uzb`, `.uzs`
+- Selagem/desselagem via menu ou atalho
+- Gerenciamento de DEVICE KEY integrado
 
-### Atalhos de build
+### Atalhos
 
-Dentro do terminal da IDE:
-
-```bash
-./oa-uvlm_build      # build do arquivo atual
-./oa-uvlm_run        # executa o último build
-```
+| Atalho | Ação |
+|---|---|
+| `F5` | Compilar e executar |
+| `Ctrl+Shift+B` | Compilar apenas (gera `.uzb`) |
+| `Ctrl+F5` | Executar sem recompilar |
+| `Ctrl+Shift+E` | Selar arquivo como `.uzs` |
+| `Ctrl+O` | Abrir (`.uz`, `.uzb`, `.uzs`) |
+| `Ctrl+/` | Comentar/descomentar linha |
+| `Ctrl+Shift+P` | Command Palette |
 
 ## Segurança
 
 A proteção da UpperZetta opera em três camadas:
 
-**1. Bytecode hostil.** O `.uzb` é gerado com instruction set proprietário e layout polimórfico. Cada build pode produzir bytecode estruturalmente diferente para o mesmo fonte.
+**1. Bytecode GLP.** O `.uzb` usa instruction set proprietário com layout palindrômico. A estrutura dificulta análise estática e decompilação.
 
-**2. Arquivos selados.** O `.uzs` encapsula o fonte com AES-256-GCM derivado via PBKDF2 com 600.000 iterações. O ZettaSource permite a reversão total do `.uzs` para o `.uz` original mediante senha, facilitando o trabalho colaborativo seguro. Sem a senha, recuperar o fonte original é inviável dentro de qualquer janela de tempo útil.
+**2. Arquivos selados.** Dois modos:
+- **CLI (`UZS1`):** AES-256-CBC + PBKDF2-SHA512 + DEVICE KEY — arquivo vinculado à máquina de origem.
+- **IDE Export (`UZS!`):** AES-256-GCM + PBKDF2-SHA512 com 600.000 iterações — portátil entre máquinas com a senha correta.
 
-**3. GLP.** A filiação ao Grupo de Linguagens Palíndromas adiciona ofuscação composta — cada linguagem do grupo contribui com uma camada que, combinada, multiplica o custo de reversão.
+Sem a senha (e a DEVICE KEY no modo `UZS1`), recuperação do fonte é inviável.
+
+**3. DEVICE KEY.** Chave única gerada na primeira execução da UVLM. Arquivos selados via CLI exigem senha **e** a DEVICE KEY da máquina de origem. Faça backup antes de formatar:
+
+```bash
+uz key-export backup.uvlmkey
+```
 
 ## Status
 
 Versão atual: `1.0.0`
 
 - Compilador `uz → uzb` funcional
-- UVLM executando bytecode compilado
-- ZettaSource IDE com instalador NSIS para Windows
-- Selagem `.uzs` com AES-256 implementada
+- UVLM executando bytecode GLP
+- ZettaSource IDE v1.0.0 — instalador NSIS para Windows x64/arm64
+- Selagem AES-256 (`UZS1` e `UZS!`) implementada
+- Documentação técnica completa em [`documentação/upperzetta1.o.md`](documentação/upperzetta1.o.md)
+
+## Documentação
+
+Referência técnica completa: **[`documentação/upperzetta1.o.md`](documentação/upperzetta1.o.md)**
+
+Cobre: sintaxe completa · semântica · bytecode UVLM · formato GLP · CLI reference · ZettaSource IDE · exemplos · padrões · migração de outras linguagens.
+
+## Build
+
+```bat
+:: Windows
+build.bat
+```
+
+```bash
+# Unix/macOS
+mkdir -p out
+javac -encoding UTF-8 -d out uvlm/src/crypto/DeviceKey.java uvlm/src/crypto/UZSCrypto.java
+javac -encoding UTF-8 -d out -cp out *.java
+javac -encoding UTF-8 -d out -cp out uvlm/src/Main.java
+jar cfm Main.jar MANIFEST.MF -C out .
+```
+
+```bash
+# IDE (requer Node.js)
+cd zettasource-ide && npm install && npm run build
+```
 
 ## Licença
 
