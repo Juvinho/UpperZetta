@@ -11,6 +11,7 @@ const terminals = new Map();
 let terminalCounter = 0;
 let mainWindow;
 let uvlm = null;
+let workspaceWatcher = null;
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -160,7 +161,14 @@ function createWindow() {
         return true;
     });
     ipcMain.handle('fs:unlink', async (_, filePath) => {
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        if (fs.existsSync(filePath)) {
+            const stat = fs.statSync(filePath);
+            if (stat.isDirectory()) {
+                fs.rmSync(filePath, { recursive: true, force: true });
+            } else {
+                fs.unlinkSync(filePath);
+            }
+        }
         return true;
     });
     ipcMain.handle('fs:rename', async (_, { oldPath, newPath }) => {
@@ -187,6 +195,57 @@ function createWindow() {
             } catch (e) { return []; }
         }
         return walk(dirPath);
+    });
+
+    // --- FILE CREATE / LIST / REVEAL IPC ---
+    ipcMain.handle('fs:createFile', async (_, filePath) => {
+        if (!fs.existsSync(filePath)) fs.writeFileSync(filePath, '', 'utf8');
+        return true;
+    });
+    ipcMain.handle('fs:createDir', async (_, dirPath) => {
+        if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
+        return true;
+    });
+    ipcMain.handle('fs:listAll', async (_, rootPath) => {
+        const results = [];
+        function walk(dir) {
+            let entries;
+            try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+            for (const e of entries) {
+                if (['node_modules', '.git', 'out', 'dist'].includes(e.name)) continue;
+                const fullPath = path.join(dir, e.name);
+                if (e.isDirectory()) walk(fullPath);
+                else results.push({ name: e.name, path: fullPath, rel: path.relative(rootPath, fullPath).replace(/\\/g, '/') });
+            }
+        }
+        walk(rootPath);
+        return results;
+    });
+    ipcMain.handle('fs:revealInExplorer', async (_, filePath) => {
+        shell.showItemInFolder(filePath);
+    });
+
+    // --- FILE WATCHER IPC ---
+    ipcMain.on('fs:watchDir', (event, dirPath) => {
+        if (workspaceWatcher) {
+            workspaceWatcher.close();
+            workspaceWatcher = null;
+        }
+        if (!dirPath) return;
+        try {
+            let debounceTimer = null;
+            workspaceWatcher = fs.watch(dirPath, { recursive: true }, () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    if (!event.sender.isDestroyed()) {
+                        event.sender.send('fs:workspace-changed');
+                    }
+                }, 300);
+            });
+            workspaceWatcher.on('error', (err) => console.error('[fs:watchDir]', err));
+        } catch (e) {
+            console.error('[fs:watchDir]', e);
+        }
     });
 
     // --- GLOBAL SEARCH IPC ---

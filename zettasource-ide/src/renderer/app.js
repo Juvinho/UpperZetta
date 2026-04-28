@@ -17,6 +17,10 @@ const { ipcRenderer } = window.require('electron');
 const Store = window.require('electron-store');
 const path = window.require('path');
 
+function fuzzyMatch(str, query) {
+    return str.toLowerCase().includes(query.toLowerCase());
+}
+
 function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
 }
@@ -292,6 +296,81 @@ class App {
 
     jumpToLine(line, col) {
         this.editor.setCursor(line, col);
+    }
+
+    async quickOpen() {
+        if (!this.workspacePath) return;
+        document.getElementById('quick-open')?.remove();
+
+        const files = await ipcRenderer.invoke('fs:listAll', this.workspacePath);
+
+        const overlay = document.createElement('div');
+        overlay.id = 'quick-open';
+        overlay.className = 'quick-open-overlay';
+        overlay.innerHTML = `
+            <div class="quick-open-box">
+                <input type="text" id="qo-input" placeholder="Buscar arquivo...">
+                <div id="qo-results"></div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const input   = document.getElementById('qo-input');
+        const results = document.getElementById('qo-results');
+        let selected  = 0;
+        let filtered  = [];
+
+        const render = (items) => {
+            filtered = items.slice(0, 30);
+            selected = 0;
+            results.innerHTML = '';
+            filtered.forEach((file, i) => {
+                const div = document.createElement('div');
+                div.className = 'qo-item' + (i === 0 ? ' active' : '');
+                div.innerHTML = `<span class="qo-name">${file.name}</span><span class="qo-path">${file.rel}</span>`;
+                div.onclick = () => { this.openFile(file.path); overlay.remove(); };
+                results.appendChild(div);
+            });
+        };
+
+        const filter = (q) => {
+            if (!q) return files;
+            return files
+                .filter(f => fuzzyMatch(f.name, q) || fuzzyMatch(f.rel, q))
+                .sort((a, b) => {
+                    const an = a.name.toLowerCase().indexOf(q.toLowerCase());
+                    const bn = b.name.toLowerCase().indexOf(q.toLowerCase());
+                    return an - bn;
+                });
+        };
+
+        render(files);
+        input.focus();
+
+        input.oninput = () => render(filter(input.value));
+
+        input.onkeydown = (e) => {
+            const items = results.querySelectorAll('.qo-item');
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                items[selected]?.classList.remove('active');
+                selected = Math.min(selected + 1, items.length - 1);
+                items[selected]?.classList.add('active');
+                items[selected]?.scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                items[selected]?.classList.remove('active');
+                selected = Math.max(selected - 1, 0);
+                items[selected]?.classList.add('active');
+                items[selected]?.scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'Enter') {
+                if (filtered[selected]) { this.openFile(filtered[selected].path); overlay.remove(); }
+            } else if (e.key === 'Escape') {
+                overlay.remove();
+            }
+        };
+
+        overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     }
 }
 

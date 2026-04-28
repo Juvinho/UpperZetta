@@ -47,6 +47,7 @@
                     <div id="tabs-container"></div>
                     <button id="new-tab-btn">add</button>
                 </div>
+                <div id="breadcrumbs"></div>
                 <div id="editor-container"></div>
                 
                 <div id="bottom-panel">
@@ -70,9 +71,12 @@
         <footer id="statusbar">
             <div class="status-left">
                 <div id="uvlm-status" class="status-item">UVLM: Idle</div>
-                <div id="cursor-pos" class="status-item">Line 1, Col 1</div>
+                <div id="cursor-pos" class="status-item">Ln 1, Col 1</div>
             </div>
             <div class="status-right">
+                <div id="word-wrap-toggle" class="status-item clickable" title="Toggle Word Wrap (Alt+Z)">No Wrap</div>
+                <div id="indent-mode" class="status-item clickable" title="Indentação">Spaces: 4</div>
+                <div id="eol-mode" class="status-item">LF</div>
                 <div id="file-encoding" class="status-item">UTF-8</div>
                 <div id="language-mode" class="status-item">UpperZetta</div>
             </div>

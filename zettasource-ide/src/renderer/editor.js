@@ -1,5 +1,5 @@
 import { EditorView, basicSetup } from 'codemirror';
-import { EditorState, Compartment } from '@codemirror/state';
+import { EditorState, Compartment, StateEffect } from '@codemirror/state';
 import { keymap, drawSelection, highlightActiveLine, dropCursor,
          rectangularSelection, crosshairCursor,
          lineNumbers, highlightActiveLineGutter } from "@codemirror/view";
@@ -107,13 +107,14 @@ export class Editor {
         this.app = app;
         this.container = document.getElementById('editor-container');
         this.view = null;
-        this.vimCompartment = new Compartment();
-        
+        this.vimCompartment  = new Compartment();
+        this.wrapCompartment = new Compartment();
+        this._wordWrap = false;
+
         this.init();
     }
 
     init() {
-        // Initial empty view
         this.view = new EditorView({
             parent: this.container,
             dispatch: (tr) => {
@@ -124,6 +125,8 @@ export class Editor {
                 this.updateCursorPos();
             }
         });
+
+        document.getElementById('word-wrap-toggle')?.addEventListener('click', () => this.toggleWordWrap());
     }
 
     createState(content) {
@@ -148,7 +151,8 @@ export class Editor {
                 ]),
                 uzLanguage,
                 syntaxHighlighting(uzHighlighting),
-                this.vimCompartment.of([])
+                this.vimCompartment.of([]),
+                this.wrapCompartment.of([])
             ]
         });
     }
@@ -172,11 +176,20 @@ export class Editor {
         });
     }
 
+    toggleWordWrap(force) {
+        this._wordWrap = force !== undefined ? force : !this._wordWrap;
+        this.view.dispatch({
+            effects: this.wrapCompartment.reconfigure(this._wordWrap ? EditorView.lineWrapping : [])
+        });
+        const btn = document.getElementById('word-wrap-toggle');
+        if (btn) btn.textContent = this._wordWrap ? 'Word Wrap' : 'No Wrap';
+    }
+
     updateCursorPos() {
         const head = this.view.state.selection.main.head;
         const line = this.view.state.doc.lineAt(head);
-        const col = head - line.from + 1;
-        document.getElementById('cursor-pos').textContent = `Line ${line.number}, Col ${col}`;
+        const col  = head - line.from + 1;
+        document.getElementById('cursor-pos').textContent = `Ln ${line.number}, Col ${col}`;
     }
 
     setCursor(line, col) {
