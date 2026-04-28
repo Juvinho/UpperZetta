@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Card — ZettaUI</title>
+
+  <!-- ZettaUI runtime (CSS injetado automaticamente pelo zettaui.js) -->
+  <script src="../runtime/zettaui.js"></script>
+
+  <style>
+    /* ── Estilos de página ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0f0f0f;
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #e8e8e8;
+    }
+
+    /* ── Layout gerado pelo componente Card ────────────────── */
+    .app-root {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 2rem;
+    }
+
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 2.5rem 3rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    .card h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #fff;
+    }
+
+    .card p {
+      color: #888;
+      font-size: 0.95rem;
+    }
+
+    .card button {
+      margin-top: 0.5rem;
+      padding: 0.7rem 1.4rem;
+      border: none;
+      border-radius: 8px;
+      background: #7c5cfc;
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      align-self: flex-start;
+      transition: background 0.2s ease, transform 0.1s ease;
+    }
+
+    .card button:hover { background: #6a4de8; }
+    .card button:active { transform: scale(0.97); }
+
+    /* mood happy — botão ativo e confiante */
+    .card button.happy { background: #3dca7a; }
+
+    /* mood shy — botão recuado */
+    .card button.shy {
+      opacity: 0.6;
+      transform: scale(0.97);
+      filter: grayscale(0.25);
+    }
+  </style>
+</head>
+<body>
+
+<script type="module">
+/* ──────────────────────────────────────────────────────────────────────────
+   Gerado pelo transpilador ZettaUI — UpperZetta
+   Fonte: card.uz
+   ────────────────────────────────────────────────────────────────────────── */
+
+// Variável global do módulo
+const appName = "UpperZetta";
+
+class Card {
+
+  constructor() {
+    this.title  = "Olá mundo";
+    this.active = true;
+    // Campos promovidos — declarados em render(), referenciados em handleClick()
+    this._titulo = null;
+    this._btn    = null;
+  }
+
+  async handleClick() {
+    ZettaAnim.bounce(this._titulo);
+    this._btn.mood("shy");
+    await this._btn.sleep(300);
+    this._btn.mood("happy");
+  }
+
+  render() {
+    const _layout = ZettaUI.dad("app-root");
+    const _card   = ZettaUI.dad("card");
+
+    // titulo e btn são promovidos para this._ porque handleClick() os usa
+    this._titulo = ZettaUI.child("h1", this.title);
+    const _sub   = ZettaUI.child("p", "Bem vindo");
+    this._btn    = ZettaUI.child("button", "Clique");
+
+    if (this.active === true) {
+      ZettaAnim.appear(this._titulo);
+      ZettaAnim.breath(_card);
+    }
+
+    this._btn.onClick(() => this.handleClick());
+
+    _card.hug(this._titulo);
+    _card.hug(_sub);
+    _card.hug(this._btn);
+    _layout.hug(_card);
+
+    // ZettaUI garante que render() retorne um dad
+    return _layout;
+  }
+}
+
+// ── Montagem ───────────────────────────────────────────────────────────────
+const _app  = new Card();
+const _root = _app.render();
+
+if (!(_root instanceof ZettaUI.ZettaNode)) {
+  ZettaUI._err(
+    'render() não retornou um dad.\n'
+    + 'Dica: todo componente precisa de um lar.'
+  );
+}
+
+ZettaUI.mount(_root);
+</script>
+
+</body>
+</html>

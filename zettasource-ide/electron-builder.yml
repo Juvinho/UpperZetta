@@ -3,7 +3,7 @@ productName: ZettaSource
 copyright: "© 2026 ZettaSource"
 
 directories:
-  output: dist_final/
+  output: dist_v2/
   buildResources: build-resources/
   app: ./
 

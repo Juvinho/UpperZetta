@@ -11,6 +11,7 @@ out/
 zettasource-ide/out/
 zettasource-ide/dist/
 zettasource-ide/dist_final/
+zettasource-ide/dist_v2/
 
 # ── esbuild bundle (generated — run `npm run bundle` to rebuild) ─
 zettasource-ide/src/renderer/bundle.js

@@ -1,0 +1,49 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run arquivo .upz aberto",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/dist/cli.js",
+      "args": ["run", "${file}"],
+      "preLaunchTask": "build",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Run examples/ola.upz",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/dist/cli.js",
+      "args": ["run", "${workspaceFolder}/examples/ola.upz"],
+      "preLaunchTask": "build",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Tokens do arquivo .upz aberto",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/dist/cli.js",
+      "args": ["tokens", "${file}"],
+      "preLaunchTask": "build",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "AST do arquivo .upz aberto",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/dist/cli.js",
+      "args": ["ast", "${file}"],
+      "preLaunchTask": "build",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

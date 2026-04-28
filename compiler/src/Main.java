@@ -17,14 +17,45 @@ public class Main {
 
         String command = stringArray[0];
         if (command.equals("seal")) {
-            if (stringArray.length < 2) { System.out.println("Usage: java Main seal <file.uz>"); return; }
             String file = stringArray[1];
+            
+            // Check for backup warning
+            if (!Files.exists(Paths.get("device.key.backup"))) {
+                System.out.println("⚠ Primeira selagem detectada.");
+                System.out.println("Você ainda não fez backup da sua DEVICE KEY.");
+                System.out.println("[E] Exportar agora   [S] Continuar mesmo assim   [C] Cancelar");
+                java.io.Console console2 = System.console();
+                String choice = console2.readLine().toUpperCase();
+                if (choice.equals("E")) {
+                    byte[] dk = UZSCrypto.getDeviceKey();
+                    System.out.println("Sua recovery phrase (anote em papel, nunca fotografe):");
+                    System.out.println(UZSCrypto.generateRecoveryPhrase(dk));
+                    Files.write(Paths.get("device.key.backup"), dk);
+                } else if (choice.equals("C")) {
+                    return;
+                }
+            }
+
+            long expiresAt = -1;
+            boolean paranoid = false;
+            for(int i=2; i<stringArray.length; i++) {
+                if (stringArray[i].equals("--expires")) {
+                    String val = stringArray[++i];
+                    if (val.endsWith("d")) {
+                        expiresAt = System.currentTimeMillis() + Long.parseLong(val.replace("d","")) * 24 * 3600 * 1000L;
+                    } else {
+                        expiresAt = java.time.LocalDate.parse(val).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+                    }
+                }
+                if (stringArray[i].equals("--paranoid")) paranoid = true;
+            }
+
             byte[] uzData = Files.readAllBytes(Paths.get(file));
             java.io.Console console = System.console();
             if (console == null) { System.out.println("Console not available."); return; }
             char[] pass = console.readPassword("Senha: ");
             UZSSealEngine sealer = new UZSSealEngine();
-            byte[] uzsData = sealer.seal(uzData, pass);
+            byte[] uzsData = sealer.seal(uzData, pass, expiresAt, paranoid);
             Files.write(Paths.get(file + "s"), uzsData);
             System.out.println("Arquivo selado com sucesso: " + file + "s");
             return;
@@ -38,11 +69,11 @@ public class Main {
             char[] pass = console.readPassword("Senha: ");
             UZSUnsealEngine unsealer = new UZSUnsealEngine();
             try {
-                byte[] uzData = unsealer.unseal(uzsData, pass);
+                byte[] uzData = unsealer.unseal(file, pass);
                 System.out.println("--- CONTEÚDO DECIFRADO ---");
                 System.out.println(new String(uzData, java.nio.charset.StandardCharsets.UTF_8));
                 java.util.Arrays.fill(uzData, (byte)0);
-            } catch (UZSWrongPasswordException e) {
+            } catch (Exception e) {
                 System.out.println(e.getMessage());
             }
             return;
@@ -57,6 +88,17 @@ public class Main {
             byte b;
             while ((b = buffer.get()) != 0x00) { meta.write(b); }
             System.out.println("Metadata: " + meta.toString(java.nio.charset.StandardCharsets.UTF_8.name()));
+            return;
+        }
+        if (command.equals("key-show")) {
+            if (stringArray.length > 1 && stringArray[1].equals("--phrase")) {
+                byte[] dk = UZSCrypto.getDeviceKey();
+                System.out.println("Sua recovery phrase (anote em papel, nunca fotografe):");
+                System.out.println(UZSCrypto.generateRecoveryPhrase(dk));
+                System.out.println("⚠ Sem essa frase, arquivos UZS1 são irrecuperáveis.");
+            } else {
+                System.out.println("Usage: java Main key-show --phrase");
+            }
             return;
         }
 
@@ -77,10 +119,11 @@ public class Main {
         }
         if (string.endsWith(".uz")) {
             String string2 = new String(Files.readAllBytes(Paths.get(string, new String[0])));
+            long seed = System.currentTimeMillis() + string2.hashCode();
             object = new Lexer(string2);
             Parser parser = new Parser(((Lexer)object).tokens);
             List<ASTNode> list = parser.parseProgram();
-            CodeGen codeGen = new CodeGen(){
+            CodeGen codeGen = new CodeGen(seed){
 
                 @Override
                 void gen(ASTNode aSTNode) {
@@ -118,7 +161,7 @@ public class Main {
             byte[] byArray = codeGen.buf.toByteArray();
             byte[] byArray2 = GLPEncoder.encode(byArray, codeGen.constants, codeGen.funcs, string);
             String string3 = string.replace(".uz", ".uzb");
-            UZBWriter.write(string3, codeGen.constants, codeGen.funcs, byArray2);
+            UZBWriter.write(string3, codeGen.constants, codeGen.funcs, byArray2, Opcodes.getLogicalTable(), codeGen.getChecksum());
             System.out.println("Compiled successfully to: " + string3);
             string = string3;
         }

@@ -11,13 +11,18 @@ import java.util.Arrays;
  * Criptografia AES-256-CBC para arquivos .uzs.
  * Vincula cada arquivo à DEVICE KEY da instalação + senha do usuário.
  *
- * Formato: MAGIC(4) + SALT(16) + IV(16) + CHECKSUM(4) + CIPHERTEXT
+ * UZS1: MAGIC(4) + SALT(16) + IV(16) + CHECKSUM(4) + CIPHERTEXT
+ * UZS2: MAGIC(4) + SALT(16) + IV(16) + CIPHERTEXT + HMAC(32)
  */
 public class UZSCrypto {
 
-    private static final int    ITERATIONS = 100_000;
-    private static final int    KEY_BITS   = 256;
-    private static final byte[] MAGIC      = {0x55, 0x5A, 0x53, 0x31}; // "UZS1"
+     private static final int    ITERATIONS          = 100_000;
+     private static final int    KEY_BITS_V1         = 256;
+     private static final int    KEY_MATERIAL_BITS   = 512;
+     private static final int    MAC_BYTES           = 32;
+     private static final byte[] MAGIC_V1            = {0x55, 0x5A, 0x53, 0x31}; // "UZS1"
+     private static final byte[] MAGIC_V2            = {0x55, 0x5A, 0x53, 0x32}; // "UZS2"
+     private static final String GENERIC_ERROR       = "Algo nao esta certo.\nDica: algumas coisas nao sao pra ser abertas.";
 
     // ── Password combination ─────────────────────────────────────────────────
 
@@ -45,8 +50,8 @@ public class UZSCrypto {
 
     // ── Key derivation ───────────────────────────────────────────────────────
 
-    private static byte[] deriveKey(char[] password, byte[] salt) throws Exception {
-        PBEKeySpec spec = new PBEKeySpec(password, salt, ITERATIONS, KEY_BITS);
+    private static byte[] deriveKey(char[] password, byte[] salt, int bits) throws Exception {
+        PBEKeySpec spec = new PBEKeySpec(password, salt, ITERATIONS, bits);
         try {
             return SecretKeyFactory
                     .getInstance("PBKDF2WithHmacSHA512")
@@ -55,6 +60,18 @@ public class UZSCrypto {
         } finally {
             spec.clearPassword();
         }
+    }
+
+    private static byte[] deriveKey(char[] password, byte[] salt) throws Exception {
+        return deriveKey(password, salt, KEY_BITS_V1);
+    }
+
+    private static byte[] hmacSha256(byte[] key, byte[] header, byte[] ciphertext) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(key, "HmacSHA256"));
+        mac.update(header);
+        mac.update(ciphertext);
+        return mac.doFinal();
     }
 
     // ── Checksum ─────────────────────────────────────────────────────────────
@@ -81,27 +98,35 @@ public class UZSCrypto {
             byte[] salt = new byte[16]; rng.nextBytes(salt);
             byte[] iv   = new byte[16]; rng.nextBytes(iv);
 
-            byte[] key = deriveKey(password, salt);
+            byte[] keyMaterial = deriveKey(password, salt, KEY_MATERIAL_BITS);
+            byte[] encKey = Arrays.copyOfRange(keyMaterial, 0, 32);
+            byte[] macKey = Arrays.copyOfRange(keyMaterial, 32, 64);
             try {
                 byte[] plain = sourceCode.getBytes(StandardCharsets.UTF_8);
-                int chk = checksum(plain);
 
                 Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
                 cipher.init(Cipher.ENCRYPT_MODE,
-                        new SecretKeySpec(key, "AES"),
+                        new SecretKeySpec(encKey, "AES"),
                         new IvParameterSpec(iv));
                 byte[] encrypted = cipher.doFinal(plain);
+                Arrays.fill(plain, (byte) 0);
 
-                // MAGIC(4) + SALT(16) + IV(16) + CHECKSUM(4) + CIPHERTEXT
-                ByteBuffer out = ByteBuffer.allocate(40 + encrypted.length);
-                out.put(MAGIC);
-                out.put(salt);
-                out.put(iv);
-                out.putInt(chk);
+                byte[] header = new byte[36];
+                System.arraycopy(MAGIC_V2, 0, header, 0, 4);
+                System.arraycopy(salt,     0, header, 4, 16);
+                System.arraycopy(iv,       0, header, 20, 16);
+
+                byte[] mac = hmacSha256(macKey, header, encrypted);
+
+                ByteBuffer out = ByteBuffer.allocate(header.length + encrypted.length + mac.length);
+                out.put(header);
                 out.put(encrypted);
+                out.put(mac);
                 return out.array();
             } finally {
-                Arrays.fill(key, (byte) 0);
+                Arrays.fill(encKey, (byte) 0);
+                Arrays.fill(macKey, (byte) 0);
+                Arrays.fill(keyMaterial, (byte) 0);
             }
         } finally {
             Arrays.fill(password, '\0');
@@ -113,15 +138,91 @@ public class UZSCrypto {
      * Lança WrongPasswordException se senha ou DEVICE KEY estiver incorreta.
      */
     public static String unseal(byte[] sealedData, String userPassword) throws Exception {
-        if (sealedData.length < 40)
-            throw new InvalidFormatException("Arquivo muito curto para ser .uzs valido.");
+        if (sealedData.length < 4) {
+            throw new InvalidFormatException(GENERIC_ERROR);
+        }
+
+        byte[] magic = Arrays.copyOfRange(sealedData, 0, 4);
+        if (Arrays.equals(magic, MAGIC_V2)) {
+            return unsealV2(sealedData, userPassword);
+        }
+        if (Arrays.equals(magic, MAGIC_V1)) {
+            return unsealV1(sealedData, userPassword);
+        }
+
+        throw new InvalidFormatException(GENERIC_ERROR);
+    }
+
+    private static String unsealV2(byte[] sealedData, String userPassword) throws Exception {
+        int minLen = 4 + 16 + 16 + MAC_BYTES;
+        if (sealedData.length < minLen) {
+            throw new InvalidFormatException(GENERIC_ERROR);
+        }
+
+        byte[] salt = Arrays.copyOfRange(sealedData, 4, 20);
+        byte[] iv   = Arrays.copyOfRange(sealedData, 20, 36);
+
+        int macStart = sealedData.length - MAC_BYTES;
+        if (macStart <= 36) {
+            throw new InvalidFormatException(GENERIC_ERROR);
+        }
+
+        byte[] encrypted = Arrays.copyOfRange(sealedData, 36, macStart);
+        byte[] storedMac = Arrays.copyOfRange(sealedData, macStart, sealedData.length);
+
+        char[] password = buildPassword(userPassword);
+        try {
+            byte[] keyMaterial = deriveKey(password, salt, KEY_MATERIAL_BITS);
+            byte[] encKey = Arrays.copyOfRange(keyMaterial, 0, 32);
+            byte[] macKey = Arrays.copyOfRange(keyMaterial, 32, 64);
+            try {
+                byte[] header = new byte[36];
+                System.arraycopy(MAGIC_V2, 0, header, 0, 4);
+                System.arraycopy(salt,     0, header, 4, 16);
+                System.arraycopy(iv,       0, header, 20, 16);
+
+                byte[] computedMac = hmacSha256(macKey, header, encrypted);
+                if (!MessageDigest.isEqual(computedMac, storedMac)) {
+                    throw new WrongPasswordException(GENERIC_ERROR);
+                }
+
+                Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+                cipher.init(Cipher.DECRYPT_MODE,
+                        new SecretKeySpec(encKey, "AES"),
+                        new IvParameterSpec(iv));
+
+                byte[] plain;
+                try {
+                    plain = cipher.doFinal(encrypted);
+                } catch (BadPaddingException | IllegalBlockSizeException e) {
+                    throw new WrongPasswordException(GENERIC_ERROR);
+                }
+
+                String source = new String(plain, StandardCharsets.UTF_8);
+                Arrays.fill(plain, (byte) 0);
+                return source;
+            } finally {
+                Arrays.fill(encKey, (byte) 0);
+                Arrays.fill(macKey, (byte) 0);
+                Arrays.fill(keyMaterial, (byte) 0);
+            }
+        } finally {
+            Arrays.fill(password, '\0');
+        }
+    }
+
+    private static String unsealV1(byte[] sealedData, String userPassword) throws Exception {
+        if (sealedData.length < 40) {
+            throw new InvalidFormatException(GENERIC_ERROR);
+        }
 
         ByteBuffer buf = ByteBuffer.wrap(sealedData);
 
         byte[] magic = new byte[4];
         buf.get(magic);
-        if (!Arrays.equals(magic, MAGIC))
-            throw new InvalidFormatException("Magic invalido — nao e um .uzs UZS1.");
+        if (!Arrays.equals(magic, MAGIC_V1)) {
+            throw new InvalidFormatException(GENERIC_ERROR);
+        }
 
         byte[] salt = new byte[16]; buf.get(salt);
         byte[] iv   = new byte[16]; buf.get(iv);
@@ -143,14 +244,12 @@ public class UZSCrypto {
                 try {
                     plain = cipher.doFinal(encrypted);
                 } catch (BadPaddingException | IllegalBlockSizeException e) {
-                    throw new WrongPasswordException(
-                            "Senha incorreta ou arquivo criado em outro dispositivo.");
+                    throw new WrongPasswordException(GENERIC_ERROR);
                 }
 
                 if (checksum(plain) != expectedChk) {
                     Arrays.fill(plain, (byte) 0);
-                    throw new WrongPasswordException(
-                            "Verificacao falhou. Senha incorreta ou DEVICE KEY diferente.");
+                    throw new WrongPasswordException(GENERIC_ERROR);
                 }
 
                 String source = new String(plain, StandardCharsets.UTF_8);

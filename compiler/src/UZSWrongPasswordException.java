@@ -1,5 +1,5 @@
 public class UZSWrongPasswordException extends Exception {
     public UZSWrongPasswordException() {
-        super("Senha incorreta ou arquivo inválido.");
+        super("Algo nao esta certo.\nDica: algumas coisas nao sao pra ser abertas.");
     }
 }

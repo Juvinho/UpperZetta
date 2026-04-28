@@ -78,115 +78,85 @@ class Opcodes {
     Opcodes() {
     }
 
-    static byte getMirror(byte by) {
-        switch (by) {
-            case 1: {
-                return 16;
-            }
-            case 2: {
-                return 32;
-            }
-            case 3: {
-                return 48;
-            }
-            case 4: {
-                return 64;
-            }
-            case 5: {
-                return 80;
-            }
-            case 6: {
-                return 96;
-            }
-            case 7: {
-                return 112;
-            }
-            case 8: {
-                return -128;
-            }
-            case 9: {
-                return -112;
-            }
-            case 10: {
-                return -96;
-            }
-            case 11: {
-                return -80;
-            }
-            case 12: {
-                return -64;
-            }
-            case 13: {
-                return -48;
-            }
-            case 14: {
-                return -32;
-            }
-            case 15: {
-                return -16;
-            }
-            case 17: {
-                return 26;
-            }
-            case 18: {
-                return 33;
-            }
-            case 19: {
-                return 49;
-            }
-            case 20: {
-                return 65;
-            }
-            case 21: {
-                return 81;
-            }
-            case 22: {
-                return 97;
-            }
-            case 23: {
-                return 113;
-            }
-            case 24: {
-                return -127;
-            }
-            case 25: {
-                return -111;
-            }
-            case 26: {
-                return -95;
-            }
-            case 27: {
-                return -79;
-            }
-            case 28: {
-                return -63;
-            }
-            case 29: {
-                return -47;
-            }
-            case 30: {
-                return -31;
-            }
-            case 31: {
-                return -15;
-            }
-            case 32: {
-                return 2;
-            }
-            case 33: {
-                return 4;
-            }
-            case 34: {
-                return 5;
-            }
-            case 35: {
-                return 6;
-            }
-            case 36: {
-                return 7;
-            }
+    private static byte[] physicalTable = null;
+    private static byte[] logicalTable = null;
+
+    static void initializeShuffledTable(long seed) {
+        physicalTable = new byte[256];
+        logicalTable = new byte[256];
+        java.util.List<Byte> values = new java.util.ArrayList<>();
+        for (int i = 0; i < 256; i++) values.add((byte) i);
+        java.util.Collections.shuffle(values, new java.util.Random(seed));
+        for (int i = 0; i < 256; i++) {
+            physicalTable[i] = values.get(i);
+            logicalTable[physicalTable[i] & 0xFF] = (byte) i;
         }
-        return by;
+    }
+
+    static void setTable(byte[] table) {
+        physicalTable = new byte[256];
+        logicalTable = table;
+        for (int i = 0; i < 256; i++) {
+            physicalTable[logicalTable[i] & 0xFF] = (byte) i;
+        }
+    }
+
+    static byte[] getLogicalTable() {
+        return logicalTable;
+    }
+
+    static byte toPhysical(byte logical) {
+        if (physicalTable == null) return logical;
+        return physicalTable[logical & 0xFF];
+    }
+
+    static byte toLogical(byte physical) {
+        if (logicalTable == null) return physical;
+        return logicalTable[physical & 0xFF];
+    }
+
+    static byte getMirror(byte by) {
+        // Mirrors should be applied to logical opcodes, then converted to physical
+        byte logicalMirror;
+        switch (by) {
+            case 1: logicalMirror = 16; break;
+            case 2: logicalMirror = 32; break;
+            case 3: logicalMirror = 48; break;
+            case 4: logicalMirror = 64; break;
+            case 5: logicalMirror = 80; break;
+            case 6: logicalMirror = 96; break;
+            case 7: logicalMirror = 112; break;
+            case 8: logicalMirror = -128; break;
+            case 9: logicalMirror = -112; break;
+            case 10: logicalMirror = -96; break;
+            case 11: logicalMirror = -80; break;
+            case 12: logicalMirror = -64; break;
+            case 13: logicalMirror = -48; break;
+            case 14: logicalMirror = -32; break;
+            case 15: logicalMirror = -16; break;
+            case 17: logicalMirror = 26; break;
+            case 18: logicalMirror = 33; break;
+            case 19: logicalMirror = 49; break;
+            case 20: logicalMirror = 65; break;
+            case 21: logicalMirror = 81; break;
+            case 22: logicalMirror = 97; break;
+            case 23: logicalMirror = 113; break;
+            case 24: logicalMirror = -127; break;
+            case 25: logicalMirror = -111; break;
+            case 26: logicalMirror = -95; break;
+            case 27: logicalMirror = -79; break;
+            case 28: logicalMirror = -63; break;
+            case 29: logicalMirror = -47; break;
+            case 30: logicalMirror = -31; break;
+            case 31: logicalMirror = -15; break;
+            case 32: logicalMirror = 2; break;
+            case 33: logicalMirror = 4; break;
+            case 34: logicalMirror = 5; break;
+            case 35: logicalMirror = 6; break;
+            case 36: logicalMirror = 7; break;
+            default: logicalMirror = by;
+        }
+        return toPhysical(logicalMirror);
     }
 
     static int getOpLen(byte by, byte[] byArray, int n) {

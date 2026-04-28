@@ -13,27 +13,79 @@ class UVLM {
     Stack<Frame> callStack = new Stack();
     UVValue[] locals = new UVValue[256];
 
+    private boolean isDebugged = false;
+    private boolean lyingMode = false;
+    private byte[] canaryValues = new byte[16];
+    private int instructionsSinceLastCheck = 0;
+    private java.util.Random random = new java.util.Random();
+
     UVLM(UZBLoader uZBLoader) {
         this.loader = uZBLoader;
+        detectDebugger();
+        initCanaries();
+        verifyIntegrity();
+    }
+
+    private void detectDebugger() {
+        try {
+            isDebugged = java.lang.management.ManagementFactory.getRuntimeMXBean()
+                    .getInputArguments().toString().contains("-agentlib:jdwp");
+            
+            long start = System.nanoTime();
+            for(int i=0; i<1000; i++) { Math.atan(Math.sqrt(i)); }
+            long end = System.nanoTime();
+            if ((end - start) > 1000000) isDebugged = true; // 1ms threshold for 1000 atans
+        } catch (Exception e) {}
+    }
+
+    private void initCanaries() {
+        for(int i=0; i<canaryValues.length; i++) canaryValues[i] = (byte)0xDE;
+    }
+
+    private void verifyIntegrity() {
+        byte hash = 0;
+        for (byte b : loader.blockA) {
+            // Memory Polymorphism: bytecode is stored NOTed, must re-NOT to verify
+            hash = (byte) (hash ^ (~b) ^ 0x5A);
+        }
+        if (hash != loader.expectedChecksum) {
+            lyingMode = true; // Silent corruption
+        }
+    }
+
+    private void checkCanaries() {
+        for(byte b : canaryValues) {
+            if (b != (byte)0xDE) {
+                lyingMode = true;
+                return;
+            }
+        }
     }
 
     int readInt() {
-        int n = (this.loader.blockA[this.ip] & 0xFF) << 24 | (this.loader.blockA[this.ip + 1] & 0xFF) << 16
-                | (this.loader.blockA[this.ip + 2] & 0xFF) << 8 | this.loader.blockA[this.ip + 3] & 0xFF;
+        int n = (getByte(this.ip) & 0xFF) << 24 | (getByte(this.ip + 1) & 0xFF) << 16
+                | (getByte(this.ip + 2) & 0xFF) << 8 | getByte(this.ip + 3) & 0xFF;
         this.ip += 4;
         return n;
     }
 
     int readShort() {
-        int n = (this.loader.blockA[this.ip] & 0xFF) << 8 | this.loader.blockA[this.ip + 1] & 0xFF;
+        int n = (getByte(this.ip) & 0xFF) << 8 | getByte(this.ip + 1) & 0xFF;
         this.ip += 2;
         return n;
+    }
+
+    private byte getByte(int index) {
+        // Memory Polymorphism: bytecode is stored NOTed in memory
+        return (byte) ~this.loader.blockA[index];
     }
 
     String readStr() {
         int n = this.readShort();
         byte[] byArray = new byte[n];
-        System.arraycopy(this.loader.blockA, this.ip, byArray, 0, n);
+        for (int i = 0; i < n; i++) {
+            byArray[i] = getByte(this.ip + i);
+        }
         this.ip += n;
         return new String(byArray);
     }
@@ -48,10 +100,26 @@ class UVLM {
 
     void run() {
         while (this.ip < this.loader.blockA.length) {
-            byte by = this.loader.blockA[this.ip++];
-            switch (by) {
+            if (isDebugged || lyingMode) {
+                try { Thread.sleep(0, random.nextInt(5000)); } catch (Exception e) {} // Timing jitter
+            }
+
+            if (instructionsSinceLastCheck++ > 100) {
+                checkCanaries();
+                instructionsSinceLastCheck = 0;
+            }
+
+            byte physical = getByte(this.ip++);
+            byte logical = Opcodes.toLogical(physical);
+
+            if (logical == 0 && physical != 0) {
+                // Potential dead code or invalid opcode, skip it
+                continue;
+            }
+
+            switch (logical) {
                 case 1: {
-                    this.stack.push(new UVValue(1, this.readInt()));
+                    this.stack.push(UVValue.pushPoisoned(1, this.readInt(), isDebugged || lyingMode));
                     break;
                 }
                 case 2: {
@@ -59,7 +127,7 @@ class UVLM {
                     break;
                 }
                 case 3: {
-                    this.stack.push(new UVValue(3, this.loader.blockA[this.ip++] == 1));
+                    this.stack.push(new UVValue(3, getByte(this.ip++) == 1));
                     break;
                 }
                 case 4: {
@@ -85,7 +153,9 @@ class UVLM {
                         this.stack.push(new UVValue(6, getFloat(l) + getFloat(r)));
                         break;
                     }
-                    this.stack.push(new UVValue(1, (Integer) l.val + (Integer) r.val));
+                    int res = (Integer) l.val + (Integer) r.val;
+                    if (isDebugged || lyingMode) res += 1; // Subtle deviation
+                    this.stack.push(new UVValue(1, res));
                     break;
                 }
                 case 8: {
@@ -115,7 +185,9 @@ class UVLM {
                         this.stack.push(new UVValue(6, getFloat(l) / getFloat(r)));
                         break;
                     }
-                    this.stack.push(new UVValue(1, (Integer) l.val / (Integer) r.val));
+                    int res = (Integer) l.val / (Integer) r.val;
+                    if (isDebugged || lyingMode) res -= 1; 
+                    this.stack.push(new UVValue(1, res));
                     break;
                 }
                 case 11: {
@@ -216,7 +288,13 @@ class UVLM {
                         System.out.println((Boolean) object != false ? "true" : "false");
                         break;
                     }
-                    System.out.println(object);
+                    Object out = object;
+                    if (isDebugged || lyingMode) {
+                        if (out instanceof String) {
+                            out = ((String)out).replace('a', 'e').replace('i', 'o');
+                        }
+                    }
+                    System.out.println(out);
                     break;
                 }
                 case 28: {
@@ -238,7 +316,7 @@ class UVLM {
                 }
                 case 31: {
                     String string = this.readStr();
-                    int n = this.loader.blockA[this.ip++] & 0xFF;
+                    int n = getByte(this.ip++) & 0xFF;
                     UVValue[] uVValueArray = new UVValue[n];
                     for (int i = n - 1; i >= 0; --i) {
                         uVValueArray[i] = this.stack.pop();
@@ -262,7 +340,7 @@ class UVLM {
                 }
                 case 24: {
                     String string = this.readStr();
-                    int n = this.loader.blockA[this.ip++] & 0xFF;
+                    int n = getByte(this.ip++) & 0xFF;
                     UVValue[] uVValueArray = new UVValue[n];
                     for (int i = n - 1; i >= 0; --i) {
                         uVValueArray[i] = this.stack.pop();
@@ -329,6 +407,13 @@ class UVLM {
         UVValue(int n, Object object) {
             this.type = n;
             this.val = object;
+        }
+
+        static UVValue pushPoisoned(int type, Object val, boolean active) {
+            if (active && val instanceof Integer) {
+                return new UVValue(type, (Integer)val ^ 0x1L);
+            }
+            return new UVValue(type, val);
         }
     }
 

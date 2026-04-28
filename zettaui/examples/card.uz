@@ -1,0 +1,41 @@
+package in ui.app;
+
+import zetta.web.ZettaUI;
+import zetta.web.ZettaAnim;
+
+e.const appName.str = "UpperZetta";
+
+componente Card {
+    let title.str    = "Olá mundo";
+    let active.boolean = true;
+
+    fun handleClick() {
+        ZettaAnim.bounce(titulo);
+        btn.mood("shy");
+        btn.sleep(300);
+        btn.mood("happy");
+    }
+
+    fun render() >> ZettaUI.dad {
+        let layout.ZettaUI.dad = ZettaUI.dad("app-root");
+        let card.ZettaUI.dad   = ZettaUI.dad("card");
+
+        let titulo.ZettaUI.child = ZettaUI.child("h1", title);
+        let sub.ZettaUI.child    = ZettaUI.child("p", "Bem vindo");
+        let btn.ZettaUI.child    = ZettaUI.child("button", "Clique");
+
+        if (active == true) {
+            ZettaAnim.appear(titulo);
+            ZettaAnim.breath(card);
+        }
+
+        btn.onClick(fun handleClick());
+
+        card.hug(titulo);
+        card.hug(sub);
+        card.hug(btn);
+        layout.hug(card);
+
+        return layout;
+    }
+}

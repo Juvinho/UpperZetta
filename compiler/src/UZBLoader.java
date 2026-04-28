@@ -16,15 +16,23 @@ class UZBLoader {
     UZBLoader() {
     }
 
+    byte expectedChecksum;
+
     void load(String string) throws Exception {
         int n;
         DataInputStream dataInputStream = new DataInputStream(new FileInputStream(string));
         if (dataInputStream.readInt() != 1431978529) {
-            throw new Exception("Invalid magic");
+            throw new Exception("✗ Algo não está certo.\nDica: algumas coisas não são pra ser abertas.");
         }
         dataInputStream.readInt();
         dataInputStream.readShort();
         dataInputStream.readShort();
+
+        // Read opcode table
+        byte[] logicalTable = new byte[256];
+        dataInputStream.readFully(logicalTable);
+        Opcodes.setTable(logicalTable);
+
         int n2 = dataInputStream.readShort();
         this.strPool = new String[n2];
         for (n = 0; n < n2; ++n) {
@@ -41,6 +49,8 @@ class UZBLoader {
         }
         byte[] byArray = new byte[dataInputStream.readInt()];
         dataInputStream.readFully(byArray);
+        this.expectedChecksum = dataInputStream.readByte();
+
         int n3 = -1;
         for (int i = 0; i < byArray.length - 1; ++i) {
             if (byArray[i] != -34 || byArray[i + 1] != -83) continue;
@@ -53,6 +63,10 @@ class UZBLoader {
         } else {
             this.blockA = byArray;
         }
+
+        // Memory Polymorphism: Transform bytecode in memory
+        for(int i=0; i<this.blockA.length; i++) this.blockA[i] = (byte)~this.blockA[i];
+        if(this.blockB != null) for(int i=0; i<this.blockB.length; i++) this.blockB[i] = (byte)~this.blockB[i];
     }
 
     void disasm(boolean bl) {

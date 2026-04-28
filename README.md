@@ -25,7 +25,7 @@ A sintaxe mistura três referências deliberadas:
 - **Python** — clareza visual, sintaxe que cabe na cabeça.
 - **Kotlin** — funções expressivas, retornos declarados.
 
-O resultado é uma linguagem de leitura simples, mas que compila para um bytecode intencionalmente hostil à decompilação.
+O resultado é uma linguagem de leitura simples, mas que compila para um bytecode intencionalmente hostil e executa em um runtime impiedoso. **Sintaxe meiga, runtime sem piedade.**
 
 ## GLP — Bytecode
 
@@ -126,15 +126,15 @@ componente Home {
 | Extensão | Descrição |
 |---|---|
 | `.uz` | Código-fonte UpperZetta (texto UTF-8) |
-| `.uzb` | Bytecode GLP compilado (binário, hostil à decompilação) |
-| `.uzs` | Arquivo **selado** — criptografado com AES-256 + PBKDF2 |
+| `.uzb` | Bytecode GLP compilado (polimórfico, hostil) |
+| `.uzs` | Arquivo **selado** — AES-256-GCM + Ofuscação de Entropia |
 
 ## UVLM
 
-**UpperZetta Virtual Language Machine** — máquina virtual de pilha que executa bytecode `.uzb`, análoga à JVM mas desenhada do zero com proteção em mente.
+**UpperZetta Virtual Language Machine** — máquina virtual de pilha que executa bytecode `.uzb`, desenhada com uma filosofia de **Paranóia Ativa**. Diferente de VMs convencionais, a UVLM não tenta ajudar o desenvolvedor a debugar; ela tenta ativamente enganar quem tenta analisá-la.
 
 ```
-arquivo.uz  →  compilador  →  arquivo.uzb  →  UVLM  →  execução
+arquivo.uz  →  compilador (shuffle + dead code)  →  arquivo.uzb  →  UVLM (polimorfismo + jitter)  →  execução
 ```
 
 ### CLI
@@ -179,23 +179,27 @@ IDE oficial construída com Electron + CodeMirror 6.
 | `Ctrl+/` | Comentar/descomentar linha |
 | `Ctrl+Shift+P` | Command Palette |
 
-## Segurança
+A proteção da UpperZetta opera em quatro camadas de hostilidade crescente:
 
-A proteção da UpperZetta opera em três camadas:
+### 🛡️ Camada 1 — Bytecode Hostil
+*   **Opcode Shuffling:** A tabela de instruções é embaralhada deterministicamente por compilação. Um opcode que significa `ADD` em um binário pode significar `PUSH` em outro.
+*   **Dead Code Injection:** O compilador injeta instruções falsas (NOPs disfarçados) que confundem decompiladores mas são ignoradas pela UVLM.
+*   **Chained Checksum:** A integridade é verificada em tempo real. Qualquer alteração no binário ativa mecanismos de defesa.
 
-**1. Bytecode GLP.** O `.uzb` usa instruction set proprietário com layout palindrômico. A estrutura dificulta análise estática e decompilação.
+### 🛡️ Camada 2 — Runtime Paranóico
+*   **Detecção de Debugger:** A UVLM monitora argumentos da JVM e detecta anomalias de timing causadas por breakpoints.
+*   **Modo Mentira (Silent Corruption):** Se um debugger for detectado, a VM não para; ela entra em "Modo Mentira", corrompendo sutilmente cálculos matemáticos e strings para frustrar o atacante.
+*   **Timing Jitter:** Injeção de delays microscópicos aleatórios para inviabilizar ataques de análise temporal.
+*   **Polimorfismo em Memória:** O bytecode é armazenado transformado na RAM e restaurado apenas no instante da execução.
 
-**2. Arquivos selados.** Dois modos:
-- **CLI (`UZS1`):** AES-256-CBC + PBKDF2-SHA512 + DEVICE KEY — arquivo vinculado à máquina de origem.
-- **IDE Export (`UZS!`):** AES-256-GCM + PBKDF2-SHA512 com 600.000 iterações — portátil entre máquinas com a senha correta.
+### 🛡️ Camada 3 — Selagem Brutal (.uzs)
+*   **Autodestruição:** Arquivos `.uzs` permitem apenas 5 tentativas de senha. Após isso, o arquivo **se sobrescreve com zeros**.
+*   **Entropy Masking:** O conteúdo cifrado é recodificado para parecer prosa (texto aleatório), ocultando a assinatura estatística de criptografia.
+*   **Fake Headers:** Arquivos selados disfarçam-se de outros formatos (ex: JPEG) para enganar identificadores de arquivos.
 
-Sem a senha (e a DEVICE KEY no modo `UZS1`), recuperação do fonte é inviável.
-
-**3. DEVICE KEY.** Chave única gerada na primeira execução da UVLM. Arquivos selados via CLI exigem senha **e** a DEVICE KEY da máquina de origem. Faça backup antes de formatar:
-
-```bash
-uz key-export backup.uvlmkey
-```
+### 🛡️ Camada 4 — Identidade de Máquina
+*   **Hardware-tied Key:** A DEVICE KEY é derivada do hardware real (CPU ID + Motherboard UUID) via PBKDF2 (600k iterações).
+*   **Recovery Phrase:** Sistema de backup estilo BIP39 (24 palavras) para restaurar acesso em caso de troca de hardware.
 
 ## Status
 

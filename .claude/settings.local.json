@@ -5,7 +5,18 @@
       "Bash(npm install *)",
       "Bash(node -e \"const p=require\\('path'\\); const d='c:/Users/Jnews/Downloads/Upperzetta/ZettaSource/dist-electron/electron'; console.log\\(p.join\\(d,'..','..','dist','index.html'\\)\\)\")",
       "Bash(node -e ' *)",
-      "Bash(python generate-icons.py)"
+      "Bash(python generate-icons.py)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git reset *)",
+      "Bash(git restore *)",
+      "Bash(gh auth *)",
+      "Bash(gh release *)",
+      "Bash(git tag *)",
+      "Bash(grep -v \"\\\\.class$\")",
+      "Bash(git mv *)",
+      "Bash(bash build.bat)"
     ]
   }
 }

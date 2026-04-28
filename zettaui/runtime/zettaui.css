@@ -1,0 +1,113 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   ZettaUI — estilos e animações base
+   Injetado automaticamente pelo runtime quando a primeira chamada ocorre.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ── Keyframes ─────────────────────────────────────────────────────────── */
+
+@keyframes _zetta-appear {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes _zetta-leave {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes _zetta-breath {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.025); }
+}
+
+@keyframes _zetta-bounce {
+  0%   { transform: translateY(0); }
+  30%  { transform: translateY(-12px); }
+  55%  { transform: translateY(0); }
+  75%  { transform: translateY(-5px); }
+  90%  { transform: translateY(0); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes _zetta-blink {
+  0%, 100% { opacity: 1; }
+  45%, 55% { opacity: 0; }
+}
+
+/* ── Animation classes ─────────────────────────────────────────────────── */
+
+.zetta-appear {
+  animation: _zetta-appear 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.zetta-leave {
+  animation: _zetta-leave 0.28s ease-in forwards;
+  pointer-events: none;
+}
+
+.zetta-breath {
+  animation: _zetta-breath 2.4s ease-in-out infinite;
+}
+
+.zetta-bounce {
+  animation: _zetta-bounce 0.55s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+  transform-origin: center bottom;
+  display: inline-block;
+}
+
+.zetta-blink {
+  animation: _zetta-blink 0.6s step-end 1;
+}
+
+/* ── Sleep state ───────────────────────────────────────────────────────── */
+
+.zetta-sleeping {
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  filter: grayscale(0.4);
+}
+
+/* ── Moods ─────────────────────────────────────────────────────────────── */
+
+/* happy — confiante, presente */
+.happy {
+  opacity: 1;
+  filter: none;
+  transition: all 0.25s ease;
+}
+
+/* shy — recuado, quieto */
+.shy {
+  opacity: 0.6;
+  transform: scale(0.97);
+  filter: grayscale(0.25);
+  transition: all 0.3s ease;
+}
+
+/* sleepy — lento, distante */
+.sleepy {
+  opacity: 0.5;
+  filter: blur(0.5px) grayscale(0.5);
+  transition: all 0.6s ease;
+  animation-play-state: paused !important;
+}
+
+/* ── Reset for ZettaUI elements ────────────────────────────────────────── */
+
+/* Garante que transições não conflitem com animações ZettaAnim */
+[class*="zetta-"] {
+  box-sizing: border-box;
+}
