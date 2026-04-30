@@ -5,9 +5,10 @@
 ### Uma linguagem de programação hostil à engenharia reversa.
 
 [![License](https://img.shields.io/badge/license-MIT-red?style=flat-square)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-black?style=flat-square)](https://github.com/Juvinho/UpperZetta/releases/tag/v1.0.0)
+[![Version](https://img.shields.io/badge/version-1.0.1-black?style=flat-square)](https://github.com/Juvinho/UpperZetta/releases/tag/v1.0.1)
 [![UVLM](https://img.shields.io/badge/runtime-UVLM-red?style=flat-square)](#uvlm)
 [![GLP](https://img.shields.io/badge/bytecode-GLP-black?style=flat-square)](#glp--bytecode)
+[![Zetta.web](https://img.shields.io/badge/lib-zetta.web-red?style=flat-square)](#zettaweb)
 
 *Também chamada de **Uzet**. Arquivo: `.uz` · Bytecode: `.uzb` · Selado: `.uzs`*
 
@@ -35,12 +36,12 @@ O objetivo não é impedir reversão — é tornar o custo do ataque maior que o
 
 ## Download
 
-**[→ ZettaSource IDE v1.0.0 (Releases)](https://github.com/Juvinho/UpperZetta/releases/tag/v1.0.0)**
+**[→ ZettaSource IDE v1.0.1 (Releases)](https://github.com/Juvinho/UpperZetta/releases/tag/v1.0.1)**
 
 | Arquivo | Descrição |
 |---|---|
-| `ZettaSource-Installer-Windows-x64.exe` | Instalador NSIS — recomendado |
-| `ZettaSource-Portable-Windows-x64.exe` | Portátil, sem instalação |
+| `ZettaSource-Setup-1.0.1.exe` | Instalador — recomendado |
+| `ZettaSource-1.0.1.exe` | Portátil, sem instalação |
 
 **Requisitos:** Java 11+ no PATH · Windows 10/11 x64
 
@@ -120,6 +121,92 @@ componente Home {
 >
 > `&&` e `||` **não** usam curto-circuito — ambos os lados sempre avaliados.
 > Use `if` aninhado para verificar nulidade antes de acessar campos.
+
+## Zetta.web
+
+`zetta.web` é a biblioteca de UI web da UpperZetta. Arquivos `.uz` que importam `zetta.web` são **transpilados para JavaScript** em vez de compilados para bytecode UVLM — zero dependências externas, apenas o runtime `zettaui.js`.
+
+```
+arquivo.uz  →  [transpilador ZettaUI]  →  arquivo.js + arquivo.html
+```
+
+### Imports
+
+```uz
+import zetta.web.ZettaUI;
+import zetta.web.ZettaAnim;
+```
+
+O compilador detecta `import zetta.web` e ativa o modo transpilador automaticamente.
+
+### Estrutura de componente
+
+```uz
+import zetta.web.ZettaUI;
+import zetta.web.ZettaAnim;
+
+package in ui.app;
+
+componente MeuApp {
+    let titulo.str = "UpperZetta";
+
+    fun render() >> ZettaUI.dad {
+        let root.ZettaUI.dad   = ZettaUI.dad("app");
+        let h1.ZettaUI.child   = ZettaUI.child("h1", titulo);
+        let btn.ZettaUI.child  = ZettaUI.child("button", "Clique");
+
+        ZettaAnim.appear(h1);
+        btn.onClick(fun handleClick());
+
+        root.hug(h1);
+        root.hug(btn);
+        return root;
+    }
+
+    fun handleClick() {
+        ZettaAnim.bounce(h1);
+        btn.mood("shy");
+        btn.sleep(300);
+        btn.mood("happy");
+    }
+}
+```
+
+### API ZettaUI
+
+| Método | Descrição |
+|--------|-----------|
+| `ZettaUI.dad(classe)` | Cria container `div` |
+| `ZettaUI.child(tag, texto)` | Cria elemento filho (h1, p, button, input…) |
+| `.hug(filho)` | Insere filho no nó pai, retorna `this` |
+| `.onClick(fun metodo())` | Listener de clique |
+| `.on(evento, fun metodo())` | Listener genérico |
+| `.mood(nome)` | Aplica humor CSS (`happy` · `shy` · `sleepy`) |
+| `.unmood(nome)` | Remove humor |
+| `.sleep(ms)` | Suspende visualmente N ms (gera `async/await`) |
+| `.wake()` | Cancela sleep em andamento |
+
+### Animações ZettaAnim
+
+| Método | Efeito |
+|--------|--------|
+| `ZettaAnim.appear(nó)` | FadeIn + sobe levemente |
+| `ZettaAnim.leave(nó)` | FadeOut + desce levemente |
+| `ZettaAnim.breath(nó)` | Pulso suave em loop |
+| `ZettaAnim.bounce(nó)` | Quica uma vez |
+| `ZettaAnim.blink(nó)` | Pisca uma vez |
+| `ZettaAnim.apply(nó, nome, ms)` | Animação com duração customizada |
+
+### Compilar para web
+
+```bash
+java -cp Main.jar Main src/App.uz
+# Saída: src/App.js  +  src/App.html
+```
+
+> Documentação completa: [`docs/ZettaUI-Web.md`](docs/ZettaUI-Web.md)
+
+---
 
 ## Extensões de arquivo
 
@@ -203,12 +290,13 @@ A proteção da UpperZetta opera em quatro camadas de hostilidade crescente:
 
 ## Status
 
-Versão atual: `1.0.0`
+Versão atual: `1.0.1`
 
 - Compilador `uz → uzb` funcional
 - UVLM executando bytecode GLP
-- ZettaSource IDE v1.0.0 — instalador NSIS para Windows x64/arm64
+- ZettaSource IDE v1.0.1 — instalador para Windows x64/arm64
 - Selagem AES-256 (`UZS1` e `UZS!`) implementada
+- **`zetta.web` — transpilador ZettaUI para JS+HTML** (novo em v1.0.1)
 - Documentação técnica completa em [`documentação/upperzetta1.o.md`](documentação/upperzetta1.o.md)
 
 ## Documentação
