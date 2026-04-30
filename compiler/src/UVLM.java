@@ -34,8 +34,15 @@ class UVLM {
             long start = System.nanoTime();
             for(int i=0; i<1000; i++) { Math.atan(Math.sqrt(i)); }
             long end = System.nanoTime();
-            if ((end - start) > 1000000) isDebugged = true; // 1ms threshold for 1000 atans
+            if ((end - start) > 10000000) isDebugged = true; // 10ms threshold
         } catch (Exception e) {}
+    }
+
+    private void activateLyingMode(String reason) {
+        if (!lyingMode) {
+            // System.err.println("[DEBUG] Lying Mode activated: " + reason);
+            lyingMode = true;
+        }
     }
 
     private void initCanaries() {
@@ -49,14 +56,14 @@ class UVLM {
             hash = (byte) (hash ^ (~b) ^ 0x5A);
         }
         if (hash != loader.expectedChecksum) {
-            lyingMode = true; // Silent corruption
+            activateLyingMode("Integrity failure");
         }
     }
 
     private void checkCanaries() {
         for(byte b : canaryValues) {
             if (b != (byte)0xDE) {
-                lyingMode = true;
+                activateLyingMode("Canary tripped");
                 return;
             }
         }
@@ -87,7 +94,7 @@ class UVLM {
             byArray[i] = getByte(this.ip + i);
         }
         this.ip += n;
-        return new String(byArray);
+        return new String(byArray, java.nio.charset.StandardCharsets.UTF_8);
     }
 
     float getFloat(UVValue v) {
@@ -98,7 +105,25 @@ class UVLM {
         return v1.val instanceof Float || v2.val instanceof Float;
     }
 
-    void run() {
+    void run(String entryPoint) {
+        for (FuncInfo func : loader.funcs) {
+            if (func.name.equals(entryPoint)) {
+                this.ip = func.offset;
+                
+                // If entry point is a method (e.g. Component.render), create 'this'
+                if (entryPoint.contains(".")) {
+                    String cls = entryPoint.split("\\.")[0];
+                    this.locals[0] = new UVValue(4, new UVObject(cls));
+                }
+                
+                run();
+                return;
+            }
+        }
+        System.out.println("✗ Ponto de entrada '" + entryPoint + "' não encontrado.");
+    }
+
+    private void run() {
         while (this.ip < this.loader.blockA.length) {
             if (isDebugged || lyingMode) {
                 try { Thread.sleep(0, random.nextInt(5000)); } catch (Exception e) {} // Timing jitter
@@ -361,6 +386,7 @@ class UVLM {
                 }
                 case 25: {
                     UVValue uVValue = this.stack.isEmpty() ? new UVValue(5, null) : this.stack.pop();
+                    if (this.callStack.isEmpty()) return; // Halts if back at entry point
                     Frame frame = this.callStack.pop();
                     this.ip = frame.ip;
                     this.locals = frame.locals;

@@ -159,7 +159,7 @@ class Opcodes {
         return toPhysical(logicalMirror);
     }
 
-    static int getOpLen(byte by, byte[] byArray, int n) {
+    static int getOpLen(byte by, byte[] byArray, int n, boolean isNoted) {
         switch (by) {
             case 1: 
             case 21: 
@@ -178,12 +178,16 @@ class Opcodes {
             }
             case 24: 
             case 31: {
-                return 2 + ((byArray[n + 1] & 0xFF) << 8 | byArray[n + 2] & 0xFF) + 1;
+                int hi = (isNoted ? ~byArray[n + 1] : byArray[n + 1]) & 0xFF;
+                int lo = (isNoted ? ~byArray[n + 2] : byArray[n + 2]) & 0xFF;
+                return 2 + (hi << 8 | lo) + 1;
             }
             case 28: 
             case 29: 
             case 30: {
-                return 2 + ((byArray[n + 1] & 0xFF) << 8 | byArray[n + 2] & 0xFF);
+                int hi = (isNoted ? ~byArray[n + 1] : byArray[n + 1]) & 0xFF;
+                int lo = (isNoted ? ~byArray[n + 2] : byArray[n + 2]) & 0xFF;
+                return 2 + (hi << 8 | lo);
             }
         }
         return 0;

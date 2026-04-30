@@ -21,9 +21,9 @@ class GLPEncoder {
             int instrCount = 0;
             int nextDeadCode = rng.nextInt(3) + 3;
 
-            for (int i = 0; i < blockA.length; i += 1 + Opcodes.getOpLen(blockA[i], blockA, i)) {
+            for (int i = 0; i < blockA.length; i += 1 + Opcodes.getOpLen(blockA[i], blockA, i, false)) {
                 byte by = blockA[i];
-                int n = Opcodes.getOpLen(by, blockA, i);
+                int n = Opcodes.getOpLen(by, blockA, i, false);
                 
                 // Inject Dead Code
                 if (instrCount++ >= nextDeadCode) {

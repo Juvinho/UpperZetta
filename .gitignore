@@ -56,6 +56,10 @@ zettasource-ide/app-config*
 # ── Binários de distribuição (use GitHub Releases) ──────────────
 zettasource-ide/*.exe
 zettasource-ide/release_new/
+zettasource-ide/dist_final_v2/
+zettasource-ide/dist_final_v3/
+zettasource-ide/dist_v3/
+zettasource-ide/dist_test/
 
 # ── Sensitive / local-only ──────────────────────────────────────
 .env

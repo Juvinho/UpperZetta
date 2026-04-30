@@ -118,7 +118,38 @@ public class Main {
             bl3 = true;
         }
         if (string.endsWith(".uz")) {
-            String string2 = new String(Files.readAllBytes(Paths.get(string, new String[0])));
+            String string2 = new String(Files.readAllBytes(Paths.get(string, new String[0])), java.nio.charset.StandardCharsets.UTF_8);
+
+            // ZettaUI web target: transpila para JS em vez de bytecode
+            if (string2.contains("import zetta.web")) {
+                StringBuilder processedSb = new StringBuilder();
+                for (String line : string2.split("\n")) {
+                    if (!line.trim().startsWith("import zetta.web")) {
+                        processedSb.append(line).append("\n");
+                    }
+                }
+                List<ASTNode> webAst = new Parser(new Lexer(processedSb.toString()).tokens).parseProgram();
+                String jsSource = new ZettaUICodeGen().transpile(webAst, string);
+                String jsOut = string.replace(".uz", ".js");
+                Files.write(Paths.get(jsOut), jsSource.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                System.out.println("Transpiled to: " + jsOut);
+                String htmlOut = string.replace(".uz", ".html");
+                if (!Files.exists(Paths.get(htmlOut))) {
+                    String title = Paths.get(string).getFileName().toString().replace(".uz", "");
+                    String html = "<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n"
+                        + "  <meta charset=\"UTF-8\" />\n"
+                        + "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n"
+                        + "  <title>" + title + " — ZettaUI</title>\n"
+                        + "  <script src=\"../runtime/zettaui.js\"></script>\n"
+                        + "</head>\n<body>\n"
+                        + "<script type=\"module\" src=\"" + Paths.get(jsOut).getFileName() + "\"></script>\n"
+                        + "</body>\n</html>\n";
+                    Files.write(Paths.get(htmlOut), html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    System.out.println("Generated: " + htmlOut);
+                }
+                return;
+            }
+
             long seed = System.currentTimeMillis() + string2.hashCode();
             object = new Lexer(string2);
             Parser parser = new Parser(((Lexer)object).tokens);
@@ -173,8 +204,28 @@ public class Main {
             } else if (bl2) {
                 uZBLoader.disasm(true);
             } else {
-                object = new UVLM(uZBLoader);
-                ((UVLM)object).run();
+                UVLM uvlm = new UVLM(uZBLoader);
+                String entry = null;
+                for (FuncInfo f : uZBLoader.funcs) {
+                    if (f.name.endsWith(".render")) {
+                        entry = f.name;
+                        break;
+                    }
+                }
+                if (entry == null) {
+                    for (FuncInfo f : uZBLoader.funcs) {
+                        if (f.name.equals("main")) {
+                            entry = "main";
+                            break;
+                        }
+                    }
+                }
+                if (entry == null) {
+                    System.out.println("✗ Nenhum ponto de entrada encontrado.");
+                    System.out.println("  Use 'comp Main { render() {...} }' ou 'fun main() {...}'");
+                } else {
+                    uvlm.run(entry);
+                }
             }
             if (bl3) {
                 object = "=== UVLM GLP REPORT ===\nBlock A Size: " + uZBLoader.blockA.length + " bytes\nBlock B Size: " + (uZBLoader.blockB != null ? uZBLoader.blockB.length : 0) + " bytes\nTotal Opcode Mirroring: 100%\nPalindromic Integrity: Valid\n";

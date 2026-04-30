@@ -16,7 +16,18 @@
       "Bash(git tag *)",
       "Bash(grep -v \"\\\\.class$\")",
       "Bash(git mv *)",
-      "Bash(bash build.bat)"
+      "Bash(bash build.bat)",
+      "Bash(jar tf *)",
+      "Bash(jar xf *)",
+      "Bash(javap -c Main.class)",
+      "Bash(javac -version)",
+      "Bash(java -version)",
+      "Read(//tmp/**)",
+      "Bash(javap -verbose Main.class)",
+      "Bash(mkdir -p /tmp/uzcompile)",
+      "Bash(javac -encoding UTF-8 -source 11 -target 11 -d /tmp/uzcompile *.java)",
+      "Bash(jar cfm *)",
+      "Bash(cp \"c:/Users/Jnews/Downloads/Upperzetta/compiler/Main.jar\" \"c:/Users/Jnews/Downloads/Upperzetta/zettasource-ide/uvlm/Main.jar\")"
     ]
   }
 }

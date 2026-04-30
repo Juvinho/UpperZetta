@@ -49,7 +49,8 @@ javac -encoding UTF-8 -d out -cp out ^
   src\UZSUnsealEngine.java ^
   src\UZSWrongPasswordException.java ^
   src\VarDecl.java ^
-  src\WhileStmt.java
+  src\WhileStmt.java ^
+  src\ZettaUICodeGen.java
 if errorlevel 1 ( echo [ERRO] Falha nas classes de suporte & exit /b 1 )
 
 echo [BUILD] Compilando Main...

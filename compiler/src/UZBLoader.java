@@ -84,9 +84,9 @@ class UZBLoader {
         int n = 0;
         while (n < ((byte[])object).length) {
             System.out.printf("  %04X: ", n);
-            byte object2 = ((byte[])object)[n];
-            System.out.print(Opcodes.getName((byte)object2) + "   ");
-            int n2 = Opcodes.getOpLen((byte)(bl ? (Object)Opcodes.getMirror((byte)object2) : object2), (byte[])object, n);
+            byte object2 = (byte)~((byte[])object)[n]; // Reverse NOT
+            System.out.print(Opcodes.getName(object2) + "   ");
+            int n2 = Opcodes.getOpLen(object2, (byte[])object, n, true); // getOpLen also needs to handle NOT
             n += 1 + n2;
             for (int i = 1; i <= n2; ++i) {
                 System.out.printf("%02X ", ((byte[])object)[n + i]);

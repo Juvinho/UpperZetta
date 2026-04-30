@@ -5,7 +5,7 @@ import { keymap, drawSelection, highlightActiveLine, dropCursor,
          lineNumbers, highlightActiveLineGutter } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
-import { syntaxHighlighting, HighlightStyle, LanguageSupport, StreamLanguage } from "@codemirror/language";
+import { syntaxHighlighting, HighlightStyle, LanguageSupport, StreamLanguage, indentUnit, indentService } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { vim } from '@replit/codemirror-vim';
 
@@ -102,6 +102,52 @@ const uzParser = StreamLanguage.define({
 
 const uzLanguage = new LanguageSupport(uzParser);
 
+// 4-space indent unit
+const uzIndentUnit = indentUnit.of("    ");
+
+// Auto-indent based on { / } context
+const uzIndentService = indentService.of((cx, pos) => {
+    const line = cx.lineAt(pos, -1);
+    if (line.from === 0) return null;
+
+    const prevLine = cx.lineAt(line.from - 1, 1);
+    const prevText = prevLine.text;
+    const prevIndent = (/^(\s*)/.exec(prevText) || ['', ''])[1].length;
+    const curText = line.text;
+
+    if (prevText.trimEnd().endsWith('{')) {
+        if (curText.trimStart().startsWith('}')) return prevIndent;
+        return prevIndent + cx.unit;
+    }
+    if (curText.trimStart().startsWith('}')) {
+        return Math.max(0, prevIndent - cx.unit);
+    }
+    return prevIndent;
+});
+
+// Enter between { and } → create indented line, keep } on line below
+const uzEnterBraces = {
+    key: "Enter",
+    run(view) {
+        const { state } = view;
+        const sel = state.selection.main;
+        if (!sel.empty) return false;
+        const pos = sel.from;
+        const charBefore = state.doc.sliceString(pos - 1, pos);
+        const charAfter  = state.doc.sliceString(pos, pos + 1);
+        if (charBefore !== '{' || charAfter !== '}') return false;
+        const line = state.doc.lineAt(pos);
+        const baseIndent = (/^(\s*)/.exec(line.text) || ['', ''])[1];
+        const inner = baseIndent + '    ';
+        const insert = '\n' + inner + '\n' + baseIndent;
+        view.dispatch({
+            changes: { from: pos, to: pos, insert },
+            selection: { anchor: pos + inner.length + 1 }
+        });
+        return true;
+    }
+};
+
 export class Editor {
     constructor(app) {
         this.app = app;
@@ -143,7 +189,10 @@ export class Editor {
                 rectangularSelection(),
                 crosshairCursor(),
                 highlightSelectionMatches(),
+                uzIndentUnit,
+                uzIndentService,
                 keymap.of([
+                    uzEnterBraces,
                     ...defaultKeymap,
                     ...historyKeymap,
                     ...searchKeymap,

@@ -3,13 +3,15 @@ productName: ZettaSource
 copyright: "© 2026 ZettaSource"
 
 directories:
-  output: dist_v2/
+  output: dist_final_v3/
   buildResources: build-resources/
-  app: ./
 
 files:
   - src/**/*
   - "!src/main/node_modules"
+  - "!dist_v2"
+  - "!dist_v3"
+  - "!dist_final"
 
 extraResources:
   - from: uvlm/

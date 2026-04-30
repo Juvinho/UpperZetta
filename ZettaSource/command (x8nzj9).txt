@@ -1,0 +1,10 @@
+NEW_JAR="c:/Users/Jnews/Downloads/Upperzetta/compiler/Main.jar"
+for f in \
+  "c:/Users/Jnews/Downloads/Upperzetta/zettasource-ide/dist_final_v3/win-arm64-unpacked/resources/uvlm/Main.jar" \
+  "c:/Users/Jnews/Downloads/Upperzetta/zettasource-ide/dist_final_v3/win-unpacked/resources/uvlm/Main.jar" \
+  "c:/Users/Jnews/Downloads/Upperzetta/zettasource-ide/dist_test/win-unpacked/resources/uvlm/Main.jar" \
+  "c:/Users/Jnews/Downloads/Upperzetta/zettasource-ide/dist_v3/win-arm64-unpacked/resources/uvlm/Main.jar" \
+  "c:/Users/Jnews/Downloads/Upperzetta/zettasource-ide/release_new/win-arm64-unpacked/resources/uvlm/Main.jar" \
+  "c:/Users/Jnews/Downloads/Upperzetta/zettasource-ide/release_new/win-unpacked/resources/uvlm/Main.jar"; do
+  cp "$NEW_JAR" "$f" && echo "✓ $f"
+done

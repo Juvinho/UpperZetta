@@ -3,3 +3,5 @@ dist/
 dist-electron/
 .vscode/
 *.log
+.claude/
+.env
